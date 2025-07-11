@@ -48,11 +48,22 @@ const formSchema = z.object({
   ),
 });
 
+interface Product {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  condition: string;
+  imageUrl?: string | null;
+  sellerId: string;
+}
+
 const ProductForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [submittedProduct, setSubmittedProduct] = useState(null);
+  const [submittedProduct, setSubmittedProduct] = useState<Product | null>(null);
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { processListingFee, isLoading: isPaymentLoading } = usePayment();
@@ -69,12 +80,12 @@ const ProductForm = () => {
     },
   });
 
-  const handleImageChange = (e) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else {
@@ -82,7 +93,7 @@ const ProductForm = () => {
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: any) => {
     if (!currentUser) {
       toast({
         title: "Authentication Required",
@@ -123,14 +134,14 @@ const ProductForm = () => {
       const response = await apiRequest("POST", "/api/products", productData);
       const product = await response.json();
       
-      if (product && product.id) {
+      if (product && product._id) {
         // Process the listing fee
-        const paymentResult = await processListingFee(product.id, {
+        const paymentResult = await processListingFee(product._id, {
           amount: 2000, // ₹20 in paisa
           description: "Listing fee for " + data.title,
           metadata: {
-            productId: product.id,
-            sellerId: currentUser?.id || 1,
+            productId: product._id,
+            sellerId: currentUser?.mongoUser?._id || currentUser?.id || 1,
           },
         });
 
@@ -140,7 +151,7 @@ const ProductForm = () => {
           
           // Invalidate relevant queries
           queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-          queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.id || 1}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id || currentUser?.id || 1}`] });
           
           // Show success message
           setShowSuccess(true);
