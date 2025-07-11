@@ -1,102 +1,104 @@
-import { boolean, integer, pgEnum, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
+// MongoDB-compatible schemas (since we're using MongoDB instead of PostgreSQL)
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  displayName: text("display_name"),
-  photoURL: text("photo_url"),
-  role: userRoleEnum("role").default('user').notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  password: text("password").notNull(), // Hashed password for local authentication
+// User schema for MongoDB
+export const userSchema = z.object({
+  _id: z.string().optional(), // MongoDB ObjectId
+  username: z.string().min(1),
+  email: z.string().email(),
+  displayName: z.string().optional(),
+  photoURL: z.string().optional(),
+  role: z.enum(['user', 'admin']).default('user'),
+  password: z.string(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-export const categoryEnum = pgEnum('category', ['books', 'electronics', 'clothes', 'stationery', 'misc']);
-export const conditionEnum = pgEnum('condition', ['new', 'like_new', 'good', 'fair', 'poor']);
-
-export const products = pgTable("products", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  price: integer("price").notNull(), // Stored in smallest currency unit (paisa)
-  category: categoryEnum("category").notNull(),
-  condition: conditionEnum("condition").notNull(),
-  imageUrl: text("image_url"),
-  sellerId: integer("seller_id").notNull().references(() => users.id),
-  isSold: boolean("is_sold").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Product schema for MongoDB
+export const productSchema = z.object({
+  _id: z.string().optional(), // MongoDB ObjectId
+  title: z.string().min(1),
+  description: z.string().min(1),
+  price: z.number().min(1), // Stored in smallest currency unit (paisa)
+  category: z.enum(['books', 'electronics', 'clothes', 'stationery', 'misc']),
+  condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']),
+  imageUrl: z.string().optional(),
+  images: z.array(z.string()).optional(),
+  sellerId: z.string(), // MongoDB ObjectId as string
+  sellerName: z.string().optional(),
+  isSold: z.boolean().default(false),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
-export const transactions = pgTable("transactions", {
-  id: serial("id").primaryKey(),
-  productId: integer("product_id").references(() => products.id),
-  sellerId: integer("seller_id").notNull().references(() => users.id),
-  buyerId: integer("buyer_id").references(() => users.id),
-  amount: integer("amount").notNull(), // Stored in smallest currency unit (paisa)
-  type: text("type").notNull(), // sale, purchase
-  status: text("status").notNull(), // pending, completed, refunded
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Transaction schema for MongoDB
+export const transactionSchema = z.object({
+  _id: z.string().optional(), // MongoDB ObjectId
+  productId: z.string().optional(), // MongoDB ObjectId as string
+  sellerId: z.string(), // MongoDB ObjectId as string
+  buyerId: z.string().optional(), // MongoDB ObjectId as string
+  amount: z.number().min(1), // Stored in smallest currency unit (paisa)
+  type: z.enum(['sale', 'purchase']),
+  status: z.enum(['pending', 'completed', 'refunded']).default('pending'),
+  createdAt: z.date().optional(),
 });
 
-// Contact access tracks buyers who can access seller contact info
-export const contactAccess = pgTable("contact_access", {
-  id: serial("id").primaryKey(),
-  productId: integer("product_id").notNull().references(() => products.id),
-  buyerId: integer("buyer_id").notNull().references(() => users.id),
-  sellerId: integer("seller_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Contact access schema for MongoDB
+export const contactAccessSchema = z.object({
+  _id: z.string().optional(), // MongoDB ObjectId
+  productId: z.string(), // MongoDB ObjectId as string
+  buyerId: z.string(), // MongoDB ObjectId as string
+  sellerId: z.string(), // MongoDB ObjectId as string
+  createdAt: z.date().optional(),
 });
 
-// Review system for rating transactions
-export const reviews = pgTable("reviews", {
-  id: serial("id").primaryKey(),
-  productId: integer("product_id").notNull().references(() => products.id),
-  reviewerId: integer("reviewer_id").notNull().references(() => users.id),
-  userId: integer("user_id").notNull().references(() => users.id), // The person being reviewed
-  rating: integer("rating").notNull(), // 1-5 star rating
-  comment: text("comment"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Review schema for MongoDB
+export const reviewSchema = z.object({
+  _id: z.string().optional(), // MongoDB ObjectId
+  productId: z.string(), // MongoDB ObjectId as string
+  reviewerId: z.string(), // MongoDB ObjectId as string
+  reviewerName: z.string().optional(),
+  userId: z.string(), // MongoDB ObjectId as string (person being reviewed)
+  rating: z.number().min(1).max(5),
+  comment: z.string().max(500).optional(),
+  createdAt: z.date().optional(),
 });
 
 // Type definitions
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type User = z.infer<typeof userSchema>;
+export type Product = z.infer<typeof productSchema>;
+export type Transaction = z.infer<typeof transactionSchema>;
+export type ContactAccess = z.infer<typeof contactAccessSchema>;
+export type Review = z.infer<typeof reviewSchema>;
 
-export const insertProductSchema = createInsertSchema(products).omit({ 
-  id: true, 
+// Insert schemas (omit _id for creation)
+export const insertUserSchema = userSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+export const insertProductSchema = productSchema.omit({ 
+  _id: true, 
   createdAt: true, 
   updatedAt: true, 
   isSold: true 
 });
+export const insertTransactionSchema = transactionSchema.omit({ 
+  _id: true, 
+  createdAt: true 
+});
+export const insertContactAccessSchema = contactAccessSchema.omit({ 
+  _id: true, 
+  createdAt: true 
+});
+export const insertReviewSchema = reviewSchema.omit({ 
+  _id: true, 
+  createdAt: true 
+});
+
+// Type definitions for inserts
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
-export type Product = typeof products.$inferSelect;
-
-export const insertTransactionSchema = createInsertSchema(transactions).omit({ 
-  id: true, 
-  createdAt: true 
-});
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
-export type Transaction = typeof transactions.$inferSelect;
-
-export const insertContactAccessSchema = createInsertSchema(contactAccess).omit({ 
-  id: true, 
-  createdAt: true 
-});
 export type InsertContactAccess = z.infer<typeof insertContactAccessSchema>;
-export type ContactAccess = typeof contactAccess.$inferSelect;
-
-export const insertReviewSchema = createInsertSchema(reviews).omit({ 
-  id: true, 
-  createdAt: true 
-});
 export type InsertReview = z.infer<typeof insertReviewSchema>;
-export type Review = typeof reviews.$inferSelect;
 
 // Validation schemas for API
 export const productValidationSchema = insertProductSchema.extend({

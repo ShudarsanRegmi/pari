@@ -1,253 +1,134 @@
-import { 
-  users, type User, type InsertUser,
-  products, type Product, type InsertProduct,
-  transactions, type Transaction, type InsertTransaction,
-  contactAccess, type ContactAccess, type InsertContactAccess,
-  reviews, type Review, type InsertReview
-} from "@shared/schema";
+import { connectMongo } from './mongo';
+import { User, Product, Transaction, ContactAccess, Review } from './models';
 
-export interface IStorage {
-  // User operations
-  getUser(id: number): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-
-  // Product operations
-  getProduct(id: number): Promise<Product | undefined>;
-  getProductsByCategory(category: string): Promise<Product[]>;
-  getProductsBySeller(sellerId: number): Promise<Product[]>;
-  getRecentProducts(limit: number): Promise<Product[]>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined>;
-  markProductAsSold(id: number): Promise<Product | undefined>;
-  
-  // Transaction operations
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  getTransaction(id: number): Promise<Transaction | undefined>;
-  getTransactionsByUser(userId: number): Promise<Transaction[]>;
-  updateTransactionStatus(id: number, status: string): Promise<Transaction | undefined>;
-  
-  // Contact access operations
-  createContactAccess(contactAccess: InsertContactAccess): Promise<ContactAccess>;
-  hasContactAccess(productId: number, buyerId: number): Promise<boolean>;
-  getContactsForBuyer(buyerId: number): Promise<ContactAccess[]>;
-  
-  // Review operations
-  createReview(review: InsertReview): Promise<Review>;
-  getReviewsByUser(userId: number): Promise<Review[]>;
-  getReviewsForProduct(productId: number): Promise<Review[]>;
-  getAverageRatingForUser(userId: number): Promise<number>;
-}
-
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private products: Map<number, Product>;
-  private transactions: Map<number, Transaction>;
-  private contactAccess: Map<number, ContactAccess>;
-  private reviews: Map<number, Review>;
-  
-  private userIdCounter: number;
-  private productIdCounter: number;
-  private transactionIdCounter: number;
-  private contactAccessIdCounter: number;
-  private reviewIdCounter: number;
-
+export class MongoStorage {
   constructor() {
-    this.users = new Map();
-    this.products = new Map();
-    this.transactions = new Map();
-    this.contactAccess = new Map();
-    this.reviews = new Map();
-    
-    this.userIdCounter = 1;
-    this.productIdCounter = 1;
-    this.transactionIdCounter = 1;
-    this.contactAccessIdCounter = 1;
-    this.reviewIdCounter = 1;
+    connectMongo();
   }
 
   // User operations
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getUser(id: string) {
+    return User.findById(id).lean();
   }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      createdAt: now,
-      displayName: insertUser.displayName || insertUser.username,
-      photoURL: insertUser.photoURL || null,
-      role: insertUser.role || 'user'
-    };
-    this.users.set(id, user);
+  
+  async getUserByEmail(email: string) {
+    console.log(`getUserByEmail called for: ${email}`);
+    
+    let user = await User.findOne({ email }).lean();
+    console.log(`Existing user found: ${user ? 'yes' : 'no'}`);
+    
+    // If user doesn't exist, create one automatically
+    if (!user) {
+      try {
+        console.log(`Auto-creating user for email: ${email}`);
+        
+        // Create a new user with basic info from email
+        const username = email.split('@')[0]; // Use email prefix as username
+        const displayName = username.charAt(0).toUpperCase() + username.slice(1); // Capitalize first letter
+        
+        console.log(`Creating user with username: ${username}, displayName: ${displayName}`);
+        
+        user = await this.createUser({
+          email,
+          username,
+          displayName,
+          photoURL: null,
+          role: 'user',
+          password: 'firebase-auth', // Placeholder since we're using Firebase auth
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        console.log(`Auto-created MongoDB user for email: ${email}, ID: ${user._id}`);
+      } catch (error) {
+        console.error(`Failed to auto-create user for email ${email}:`, error);
+        return null;
+      }
+    }
+    
+    console.log(`Returning user for email ${email}: ${user ? 'success' : 'null'}`);
     return user;
   }
+  
+  async getUserByUsername(username: string) {
+    return User.findOne({ username }).lean();
+  }
+  
+  async createUser(user: any) {
+    const created = await User.create(user);
+    return created.toObject();
+  }
 
   // Product operations
-  async getProduct(id: number): Promise<Product | undefined> {
-    return this.products.get(id);
+  async getProduct(id: string) {
+    return Product.findById(id).lean();
   }
-
-  async getProductsByCategory(category: string): Promise<Product[]> {
-    return Array.from(this.products.values())
-      .filter(product => product.category === category && !product.isSold)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getProductsByCategory(category: string) {
+    return Product.find({ category, isSold: false }).sort({ createdAt: -1 }).lean();
   }
-
-  async getProductsBySeller(sellerId: number): Promise<Product[]> {
-    return Array.from(this.products.values())
-      .filter(product => product.sellerId === sellerId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getProductsBySeller(sellerId: string) {
+    return Product.find({ sellerId }).sort({ createdAt: -1 }).lean();
   }
-
-  async getRecentProducts(limit: number): Promise<Product[]> {
-    return Array.from(this.products.values())
-      .filter(product => !product.isSold)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+  async getRecentProducts(limit: number) {
+    return Product.find({ isSold: false }).sort({ createdAt: -1 }).limit(limit).lean();
   }
-
-  async createProduct(product: InsertProduct): Promise<Product> {
-    const id = this.productIdCounter++;
-    const now = new Date();
-    const newProduct: Product = {
-      ...product,
-      id,
-      createdAt: now,
-      updatedAt: now,
-      isSold: false,
-      imageUrl: product.imageUrl || null
-    };
-    this.products.set(id, newProduct);
-    return newProduct;
+  async createProduct(product: any) {
+    const created = await Product.create(product);
+    return created.toObject();
   }
-
-  async updateProduct(id: number, updates: Partial<Product>): Promise<Product | undefined> {
-    const product = this.products.get(id);
-    if (!product) return undefined;
-    
-    const updatedProduct: Product = {
-      ...product,
-      ...updates,
-      updatedAt: new Date()
-    };
-    this.products.set(id, updatedProduct);
-    return updatedProduct;
+  async updateProduct(id: string, updates: any) {
+    return Product.findByIdAndUpdate(id, { ...updates, updatedAt: new Date() }, { new: true }).lean();
   }
-
-  async markProductAsSold(id: number): Promise<Product | undefined> {
-    return this.updateProduct(id, { isSold: true });
+  async markProductAsSold(id: string) {
+    return Product.findByIdAndUpdate(id, { isSold: true, updatedAt: new Date() }, { new: true }).lean();
   }
 
   // Transaction operations
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    const id = this.transactionIdCounter++;
-    const now = new Date();
-    const newTransaction: Transaction = {
-      ...transaction,
-      id,
-      createdAt: now,
-      productId: transaction.productId || null,
-      buyerId: transaction.buyerId || null,
-      paymentId: transaction.paymentId || null
-    };
-    this.transactions.set(id, newTransaction);
-    return newTransaction;
+  async createTransaction(transaction: any) {
+    const created = await Transaction.create(transaction);
+    return created.toObject();
   }
-
-  async getTransaction(id: number): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
+  async getTransaction(id: string) {
+    return Transaction.findById(id).lean();
   }
-
-  async getTransactionsByUser(userId: number): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(transaction => transaction.sellerId === userId || transaction.buyerId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getTransactionsByUser(userId: string) {
+    return Transaction.find({ $or: [{ sellerId: userId }, { buyerId: userId }] }).sort({ createdAt: -1 }).lean();
   }
-
-  async updateTransactionStatus(id: number, status: string): Promise<Transaction | undefined> {
-    const transaction = this.transactions.get(id);
-    if (!transaction) return undefined;
-    
-    const updatedTransaction: Transaction = {
-      ...transaction,
-      status
-    };
-    this.transactions.set(id, updatedTransaction);
-    return updatedTransaction;
+  async updateTransactionStatus(id: string, status: string) {
+    return Transaction.findByIdAndUpdate(id, { status }, { new: true }).lean();
   }
 
   // Contact access operations
-  async createContactAccess(access: InsertContactAccess): Promise<ContactAccess> {
-    const id = this.contactAccessIdCounter++;
-    const now = new Date();
-    const newAccess: ContactAccess = {
-      ...access,
-      id,
-      createdAt: now
-    };
-    this.contactAccess.set(id, newAccess);
-    return newAccess;
+  async createContactAccess(access: any) {
+    const created = await ContactAccess.create(access);
+    return created.toObject();
   }
-
-  async hasContactAccess(productId: number, buyerId: number): Promise<boolean> {
-    return Array.from(this.contactAccess.values())
-      .some(access => access.productId === productId && access.buyerId === buyerId);
+  async hasContactAccess(productId: string, buyerId: string) {
+    const found = await ContactAccess.findOne({ productId, buyerId });
+    return !!found;
   }
-
-  async getContactsForBuyer(buyerId: number): Promise<ContactAccess[]> {
-    return Array.from(this.contactAccess.values())
-      .filter(access => access.buyerId === buyerId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getContactsForBuyer(buyerId: string) {
+    return ContactAccess.find({ buyerId }).sort({ createdAt: -1 }).lean();
   }
 
   // Review operations
-  async createReview(review: InsertReview): Promise<Review> {
-    const id = this.reviewIdCounter++;
-    const now = new Date();
-    const newReview: Review = {
-      ...review,
-      id,
-      createdAt: now,
-      comment: review.comment || null
-    };
-    this.reviews.set(id, newReview);
-    return newReview;
+  async createReview(review: any) {
+    const created = await Review.create(review);
+    return created.toObject();
   }
-
-  async getReviewsByUser(userId: number): Promise<Review[]> {
-    return Array.from(this.reviews.values())
-      .filter(review => review.reviewerId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getReviewsByUser(userId: string) {
+    return Review.find({ reviewerId: userId }).sort({ createdAt: -1 }).lean();
   }
-
-  async getReviewsForProduct(productId: number): Promise<Review[]> {
-    return Array.from(this.reviews.values())
-      .filter(review => review.productId === productId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  async getReviewsForProduct(productId: string) {
+    return Review.find({ productId }).sort({ createdAt: -1 }).lean();
   }
-
-  async getAverageRatingForUser(userId: number): Promise<number> {
-    const userReviews = Array.from(this.reviews.values())
-      .filter(review => review.reviewedId === userId);
-    
-    if (userReviews.length === 0) return 0;
-    
-    const sum = userReviews.reduce((total, review) => total + review.rating, 0);
-    return sum / userReviews.length;
+  async getAverageRatingForUser(userId: string) {
+    const result = await Review.aggregate([
+      { $match: { userId } },
+      { $group: { _id: null, avg: { $avg: "$rating" } } }
+    ]);
+    return result[0]?.avg || 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new MongoStorage();

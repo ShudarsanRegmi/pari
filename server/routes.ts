@@ -2,12 +2,25 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ZodError } from "zod";
+import { z } from "zod";
 import { 
-  productValidationSchema, 
   reviewValidationSchema,
   insertTransactionSchema,
   insertContactAccessSchema
 } from "@shared/schema";
+
+// Override the product validation schema for MongoDB compatibility
+const productValidationSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  price: z.number().min(1).max(1000000),
+  category: z.enum(['books', 'electronics', 'clothes', 'stationery', 'misc']),
+  condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']),
+  imageUrl: z.string().nullable().optional(),
+  images: z.array(z.string()).optional(),
+  sellerId: z.string(), // MongoDB ObjectId as string
+  sellerName: z.string().optional(),
+});
 
 // Helper for response error handling
 const handleError = (res: Response, error: unknown) => {
@@ -32,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { category, limit = "10", sellerId } = req.query;
       
       if (sellerId) {
-        const products = await storage.getProductsBySeller(parseInt(sellerId as string, 10));
+        const products = await storage.getProductsBySeller(sellerId as string);
         return res.json(products);
       }
       
@@ -51,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const product = await storage.getProduct(id);
       
       if (!product) {
@@ -76,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/products/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       // Only validate the fields that are present in the request
       const updates = productValidationSchema.partial().parse(req.body);
       
@@ -93,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/products/:id/mark-sold", async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const updatedProduct = await storage.markProductAsSold(id);
       
       if (!updatedProduct) {
@@ -119,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/transactions/user/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId, 10);
+      const userId = req.params.userId;
       const transactions = await storage.getTransactionsByUser(userId);
       res.json(transactions);
     } catch (error) {
@@ -129,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/transactions/:id/status", async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const { status } = req.body;
       
       if (!status || typeof status !== "string") {
@@ -168,8 +181,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const hasAccess = await storage.hasContactAccess(
-        parseInt(productId as string, 10),
-        parseInt(buyerId as string, 10)
+        productId as string,
+        buyerId as string
       );
       
       res.json({ hasAccess });
@@ -180,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/contact-access/buyer/:buyerId", async (req, res) => {
     try {
-      const buyerId = parseInt(req.params.buyerId, 10);
+      const buyerId = req.params.buyerId;
       const contacts = await storage.getContactsForBuyer(buyerId);
       res.json(contacts);
     } catch (error) {
@@ -201,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reviews/product/:productId", async (req, res) => {
     try {
-      const productId = parseInt(req.params.productId, 10);
+      const productId = req.params.productId;
       const reviews = await storage.getReviewsForProduct(productId);
       res.json(reviews);
     } catch (error) {
@@ -211,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reviews/user/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId, 10);
+      const userId = req.params.userId;
       const reviews = await storage.getReviewsByUser(userId);
       res.json(reviews);
     } catch (error) {
@@ -221,7 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reviews/rating/:userId", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId, 10);
+      const userId = req.params.userId;
       const rating = await storage.getAverageRatingForUser(userId);
       res.json({ rating });
     } catch (error) {
@@ -232,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User operations
   app.get("/api/users/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = req.params.id;
       const user = await storage.getUser(id);
       
       if (!user) {
@@ -248,14 +261,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/email/:email", async (req, res) => {
     try {
       const { email } = req.params;
+      console.log(`Fetching user by email: ${email}`);
+      
       const user = await storage.getUserByEmail(email);
       
       if (!user) {
+        console.log(`User not found and auto-creation failed for email: ${email}`);
         return res.status(404).json({ message: "User not found" });
       }
       
+      console.log(`User found/created for email: ${email}, ID: ${user._id}`);
       res.json(user);
     } catch (error) {
+      console.error(`Error in /api/users/email/:email for ${req.params.email}:`, error);
       handleError(res, error);
     }
   });

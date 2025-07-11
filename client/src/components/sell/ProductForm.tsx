@@ -100,6 +100,16 @@ const ProductForm = () => {
       let imageUrl = imagePreview;
 
       // Create the product
+      const sellerId = currentUser?.mongoUser?._id;
+      if (!sellerId) {
+        toast({
+          title: "User Sync Error",
+          description: "Could not find your user record. Please log out and log in again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
       const productData = {
         title: data.title,
         description: data.description,
@@ -107,7 +117,7 @@ const ProductForm = () => {
         category: data.category,
         condition: data.condition,
         imageUrl: imageUrl || null,
-        sellerId: currentUser?.id || 1, // Use actual user ID
+        sellerId,
       };
 
       const response = await apiRequest("POST", "/api/products", productData);
