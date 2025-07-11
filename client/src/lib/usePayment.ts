@@ -1,23 +1,14 @@
-import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 import { apiRequest } from './queryClient';
 import { useAuth } from './useAuth';
-
-// This is a mock payment integration
-// In a real application, you would use Razorpay or Stripe SDK
-
-interface PaymentOptions {
-  amount: number; // amount in paisa/cents
-  description: string;
-  metadata?: Record<string, any>;
-}
 
 export function usePayment() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { currentUser } = useAuth();
 
-  const processListingFee = async (productId: number, options: PaymentOptions) => {
+  const processListingFee = async (productId: number, options: any) => {
     if (!currentUser) {
       toast({
         title: "Authentication Required",
@@ -30,30 +21,19 @@ export function usePayment() {
     try {
       setIsLoading(true);
       
-      // In a real application, you would initialize Razorpay or Stripe here
-      // For this demo, we'll simulate a successful payment
-      
-      // Create a transaction record
-      const transaction = await apiRequest('POST', '/api/transactions', {
-        productId,
-        sellerId: options.metadata?.sellerId, 
-        amount: options.amount,
-        transactionType: 'listing_fee',
-        status: 'completed',
-        paymentId: `pay_${Date.now()}` // Mock payment ID
-      });
-      
+      // Skip payment processing - just show success
       toast({
-        title: "Payment Successful",
-        description: "Your item has been listed successfully.",
+        title: "Item Listed Successfully",
+        description: "Your item has been listed without any fees.",
       });
       
-      return transaction;
+      // Return a mock successful transaction
+      return { success: true, id: `listing_${Date.now()}` };
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Listing error:', error);
       toast({
-        title: "Payment Failed",
-        description: "Could not process payment. Please try again.",
+        title: "Listing Failed",
+        description: "Could not list your item. Please try again.",
         variant: "destructive"
       });
       return null;
@@ -62,7 +42,7 @@ export function usePayment() {
     }
   };
 
-  const processContactFee = async (productId: number, sellerId: number, options: PaymentOptions) => {
+  const processContactFee = async (productId: number, sellerId: number, options: any) => {
     if (!currentUser) {
       toast({
         title: "Authentication Required",
@@ -75,49 +55,23 @@ export function usePayment() {
     try {
       setIsLoading(true);
       
-      // Check if already has access
-      const checkResponse = await fetch(`/api/contact-access/check?productId=${productId}&buyerId=${options.metadata?.buyerId}`, {
-        credentials: 'include',
-      });
-      
-      const { hasAccess } = await checkResponse.json();
-      
-      if (hasAccess) {
-        toast({
-          title: "Access Granted",
-          description: "You already have access to contact this seller.",
-        });
-        return { hasAccess: true };
-      }
-      
-      // Create a transaction record
-      const transaction = await apiRequest('POST', '/api/transactions', {
-        productId,
-        sellerId,
-        buyerId: options.metadata?.buyerId,
-        amount: options.amount,
-        transactionType: 'contact_fee',
-        status: 'completed',
-        paymentId: `pay_${Date.now()}` // Mock payment ID
-      });
-      
-      // Grant contact access
+      // Grant contact access directly without payment
       await apiRequest('POST', '/api/contact-access', {
         productId,
         buyerId: options.metadata?.buyerId,
       });
       
       toast({
-        title: "Payment Successful",
-        description: "You can now contact the seller.",
+        title: "Access Granted",
+        description: "You can now contact the seller for free.",
       });
       
-      return { transaction, hasAccess: true };
+      return { hasAccess: true };
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Contact access error:', error);
       toast({
-        title: "Payment Failed",
-        description: "Could not process payment. Please try again.",
+        title: "Access Failed",
+        description: "Could not grant contact access. Please try again.",
         variant: "destructive"
       });
       return { hasAccess: false };

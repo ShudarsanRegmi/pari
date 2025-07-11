@@ -1,14 +1,21 @@
-import { createContext, useContext, useState, ReactNode } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-// Simple User interface to replace Firebase's User
-export interface User {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL: string | null;
-  isAdmin: boolean;
-}
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  User as FirebaseUser,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile
+} from 'firebase/auth';
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import {
+  auth,
+  convertFirebaseUser,
+  createUserDocument,
+  googleProvider,
+  User
+} from "./firebase";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -24,27 +31,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const googleSignIn = async () => {
+  useEffect(() => {
+    const unsubscribe = firebaseOnAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        await createUserDocument(firebaseUser);
+        const user = await convertFirebaseUser(firebaseUser);
+        setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const signInWithGoogle = async (): Promise<User | null> => {
     try {
       setLoading(true);
-      // Simulate a successful Google sign-in
-      const user: User = {
-        uid: 'google-user-123',
-        email: 'user@example.com',
-        displayName: 'Google User',
-        photoURL: null,
-        isAdmin: false
-      };
-      setCurrentUser(user);
+      const result = await signInWithPopup(auth, googleProvider);
+      await createUserDocument(result.user);
+      const user = await convertFirebaseUser(result.user);
+      
+      toast({
+        title: "Success!",
+        description: "Signed in with Google successfully.",
+        variant: "default"
+      });
+      
       return user;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
       toast({
         title: "Sign-in Failed",
-        description: "Could not sign in with Google. Please try again.",
+        description: error.message || "Could not sign in with Google. Please try again.",
         variant: "destructive"
       });
       return null;
@@ -53,28 +76,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User | null> => {
     try {
       setLoading(true);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      await createUserDocument(result.user);
+      const user = await convertFirebaseUser(result.user);
       
-      // Check if this is our admin user
-      const isAdminUser = email === 'admin@example.com';
-      setIsAdmin(isAdminUser);
+      toast({
+        title: "Welcome back!",
+        description: "Logged in successfully.",
+        variant: "default"
+      });
       
-      const user: User = {
-        uid: 'email-user-' + Date.now(),
-        email: email,
-        displayName: email.split('@')[0],
-        photoURL: null,
-        isAdmin: isAdminUser
-      };
-      
-      setCurrentUser(user);
       return user;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login error:', error);
+      let errorMessage = "Invalid email or password. Please try again.";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email.";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address.";
+      }
+      
       toast({
         title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
       return null;
@@ -83,23 +113,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, username: string) => {
+  const register = async (email: string, password: string, username: string): Promise<User | null> => {
     try {
       setLoading(true);
-      const user: User = {
-        uid: 'new-user-' + Date.now(),
-        email: email,
-        displayName: username,
-        photoURL: null,
-        isAdmin: false
-      };
+      const result = await createUserWithEmailAndPassword(auth, email, password);
       
-      setCurrentUser(user);
+      // Update the user's display name
+      await updateProfile(result.user, {
+        displayName: username
+      });
+      
+      await createUserDocument(result.user, { username });
+      const user = await convertFirebaseUser(result.user);
+      
+      toast({
+        title: "Account created!",
+        description: "Your account has been created successfully.",
+        variant: "default"
+      });
+      
       return user;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      let errorMessage = "Could not create account. Please try again.";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "An account with this email already exists.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak. Please choose a stronger password.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address.";
+      }
+      
       toast({
         title: "Registration Failed",
-        description: "Could not create account. Email may already be in use.",
+        description: errorMessage,
         variant: "destructive"
       });
       return null;
@@ -108,11 +156,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
-      setCurrentUser(null);
-      setIsAdmin(false);
-    } catch (error) {
+      await signOut(auth);
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully.",
+        variant: "default"
+      });
+    } catch (error: any) {
+      console.error('Logout error:', error);
       toast({
         title: "Logout Failed",
         description: "Could not log out. Please try again.",
@@ -124,11 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const contextValue: AuthContextType = {
     currentUser,
     loading,
-    signInWithGoogle: googleSignIn,
+    signInWithGoogle,
     login,
     register,
     logout,
-    isAdmin
+    isAdmin: currentUser?.isAdmin || false
   };
 
   return (

@@ -1,30 +1,15 @@
 {
-<<<<<<< HEAD
-  "name": "parivartana-marketplace",
-=======
-  "name": "parivartana-web",
->>>>>>> b5355d9 (Update: fixed Vite config and deployment setup for GitHub Pages)
+  "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://mohanrajv3.github.io/Parivartana-web",
   "scripts": {
-    "dev": "vite",
+    "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-<<<<<<< HEAD
-    "db:push": "drizzle-kit push",
-    
-    // GitHub Pages deployment (for frontend in root)
-    "predeploy": "vite build",
-    "deploy": "gh-pages -d dist"
-=======
-    "deploy": "vite build && gh-pages -d dist",
     "db:push": "drizzle-kit push"
->>>>>>> b5355d9 (Update: fixed Vite config and deployment setup for GitHub Pages)
   },
-  "homepage": "https://mohanrajv3.github.io/Parivartana-web",
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -67,6 +52,7 @@
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "firebase": "^11.10.0",
     "framer-motion": "^11.13.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.453.0",
@@ -110,11 +96,6 @@
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.25.0",
-<<<<<<< HEAD
-    "gh-pages": "^6.1.1",
-=======
-    "gh-pages": "^6.3.0",
->>>>>>> b5355d9 (Update: fixed Vite config and deployment setup for GitHub Pages)
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",

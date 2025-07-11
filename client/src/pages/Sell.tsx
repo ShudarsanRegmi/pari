@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { Helmet } from 'react-helmet-async';
-import { useAuth } from '@/lib/useAuth';
 import ProductForm from '@/components/sell/ProductForm';
+import { useAuth } from '@/lib/useAuth';
+import { useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'wouter';
 
 const Sell = () => {
   const { currentUser, loading } = useAuth();
@@ -49,7 +49,7 @@ const Sell = () => {
               <ul className="space-y-2 text-primary-700 text-sm">
                 <li className="flex items-start">
                   <span className="bg-primary-200 text-primary-700 rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">1</span>
-                  <span>Pay a ₹20 listing fee (50% back when item sells)</span>
+                  <span>List your items completely free - no listing fees!</span>
                 </li>
                 <li className="flex items-start">
                   <span className="bg-primary-200 text-primary-700 rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">2</span>
