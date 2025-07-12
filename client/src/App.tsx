@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -24,9 +24,12 @@ import Chatbot from "@/pages/Chatbot";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const [location] = useLocation();
+  const isChatbotPage = location === '/chatbot';
+  
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+      {!isChatbotPage && <Navbar />}
       <main className="flex-grow">
         <Switch>
           <Route path="/" component={Home} />
@@ -45,8 +48,8 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
-      <Footer />
-      <FloatingActionButton />
+      {!isChatbotPage && <Footer />}
+      {!isChatbotPage && <FloatingActionButton />}
     </div>
   );
 }

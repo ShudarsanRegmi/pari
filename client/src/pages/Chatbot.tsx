@@ -4,11 +4,8 @@ import { useAuth } from '@/lib/useAuth';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   Send, 
   Bot, 
@@ -18,10 +15,10 @@ import {
   BookOpen, 
   Leaf,
   Loader2,
-  MessageCircle,
   Search,
   Package,
-  Coins
+  Coins,
+  ArrowLeft
 } from 'lucide-react';
 
 interface Message {
@@ -142,144 +139,121 @@ const Chatbot = () => {
         <meta name="description" content="Chat with PariMitra, your AI assistant for sustainable marketplace queries and product discovery." />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className="relative">
-                  <Avatar className="h-16 w-16 border-4 border-green-200">
-                    <AvatarImage src="/api/placeholder/64/64" />
-                    <AvatarFallback className="bg-green-100 text-green-600">
-                      <Bot className="h-8 w-8" />
+      <div className="h-screen flex flex-col bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3">
+          <div className="flex items-center justify-between max-w-4xl mx-auto">
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLocation('/')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <div className="flex items-center space-x-2">
+                <Avatar className="h-8 w-8 border-2 border-green-200">
+                  <AvatarImage src="/api/placeholder/32/32" />
+                  <AvatarFallback className="bg-green-100 text-green-600">
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h1 className="font-semibold text-gray-900">PariMitra AI Assistant</h1>
+                  <p className="text-xs text-gray-500">Sustainable marketplace assistant</p>
+                </div>
+              </div>
+            </div>
+            {isLoading && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Typing...
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`flex items-start space-x-3 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                  <Avatar className={`h-8 w-8 flex-shrink-0 ${message.type === 'user' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                    <AvatarFallback className={message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}>
+                      {message.type === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -top-1 -right-1">
-                    <div className="bg-green-500 rounded-full p-1">
-                      <Sparkles className="h-3 w-3 text-white" />
+                  <div className={`rounded-2xl px-4 py-3 ${
+                    message.type === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
+                  }`}>
+                    <div 
+                      className="text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html: formatMessage(message.content)
+                      }}
+                    />
+                    <div className={`text-xs mt-2 ${
+                      message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                    }`}>
+                      {message.timestamp.toLocaleTimeString()}
                     </div>
                   </div>
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                PariMitra AI Assistant
-              </h1>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                Your intelligent companion for navigating the sustainable marketplace. 
-                Ask about products, tokens, sustainability tips, and more!
-              </p>
-            </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Quick Actions */}
-              <div className="lg:col-span-1">
-                <Card className="sticky top-4">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <MessageCircle className="h-5 w-5" />
-                      <span>Quick Actions</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {quickActions.map((action, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        className="w-full justify-start text-left h-auto p-3"
-                        onClick={() => handleQuickAction(action.prompt)}
-                      >
-                        <action.icon className="h-4 w-4 mr-3 text-green-600" />
-                        <span className="text-sm">{action.label}</span>
-                      </Button>
-                    ))}
-                  </CardContent>
-                </Card>
+        {/* Input Area */}
+        <div className="bg-white border-t border-gray-200 px-4 py-4">
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={sendMessage} className="flex space-x-3">
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask PariMitra anything..."
+                  className="pr-12 h-12 text-base border-gray-300 focus:border-green-500 focus:ring-green-500"
+                  disabled={isLoading}
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex space-x-1">
+                  {quickActions.slice(0, 3).map((action, index) => (
+                    <Button
+                      key={index}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleQuickAction(action.prompt)}
+                      className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      <action.icon className="h-3 w-3 mr-1" />
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
               </div>
-
-              {/* Chat Interface */}
-              <div className="lg:col-span-2">
-                <Card className="h-[600px] flex flex-col">
-                  <CardHeader className="border-b">
-                    <CardTitle className="flex items-center space-x-2">
-                      <Bot className="h-5 w-5 text-green-600" />
-                      <span>Chat with PariMitra</span>
-                      {isLoading && (
-                        <Badge variant="secondary" className="ml-auto">
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                          Typing...
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  
-                  <CardContent className="flex-1 p-0">
-                    <ScrollArea className="h-full p-4">
-                      <div className="space-y-4">
-                        {messages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div className={`flex items-start space-x-3 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                              <Avatar className={`h-8 w-8 ${message.type === 'user' ? 'bg-blue-100' : 'bg-green-100'}`}>
-                                <AvatarFallback className={message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'}>
-                                  {message.type === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className={`rounded-lg p-3 ${
-                                message.type === 'user' 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-gray-100 text-gray-900'
-                              }`}>
-                                <div 
-                                  className="text-sm"
-                                  dangerouslySetInnerHTML={{
-                                    __html: formatMessage(message.content)
-                                  }}
-                                />
-                                <div className={`text-xs mt-2 ${
-                                  message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-                                }`}>
-                                  {message.timestamp.toLocaleTimeString()}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                  
-                  <Separator />
-                  
-                  <div className="p-4">
-                    <form onSubmit={sendMessage} className="flex space-x-2">
-                      <Input
-                        ref={inputRef}
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Ask PariMitra anything..."
-                        className="flex-1"
-                        disabled={isLoading}
-                      />
-                      <Button 
-                        type="submit" 
-                        disabled={!input.trim() || isLoading}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </form>
-                  </div>
-                </Card>
-              </div>
-            </div>
+              <Button 
+                type="submit" 
+                disabled={!input.trim() || isLoading}
+                className="bg-green-600 hover:bg-green-700 h-12 px-6"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
           </div>
         </div>
       </div>
