@@ -10,6 +10,7 @@ from langchain.agents.agent_types import AgentType
 from langchain.tools import StructuredTool
 from rag.reward_tool import answer_from_reward_guide
 from typing import Optional
+import re
 
 load_dotenv()
 
@@ -120,6 +121,101 @@ def get_product_detail(product_id: str) -> str:
         return f"Product: {product['title']}\nCategory: {category}\nPrice: {price} tokens\nDescription: {description}"
     except Exception as e:
         return f"Error getting product detail: {str(e)}"
+
+def enlist_product(product_description: str) -> str:
+    """
+    Enlist a product for sale using natural language description.
+    The user should provide: title, description, price in tokens, category, condition, and optionally image URL.
+    Categories: books, electronics, clothes, stationery, misc
+    Conditions: new, like_new, good, fair, poor
+    """
+    try:
+        # Parse the product description to extract required fields
+        # This is a simplified parser - in production, you might want to use a more sophisticated NLP approach
+        
+        # Extract title (usually the first part before any price mention)
+        title_match = re.search(r'^(.*?)(?:\s+for\s+\d+|\s+\d+\s+tokens?|\s+price\s+\d+)', product_description, re.IGNORECASE)
+        title = title_match.group(1).strip() if title_match else "Untitled Product"
+        
+        # Extract price
+        price_match = re.search(r'(\d+)\s*tokens?', product_description, re.IGNORECASE)
+        if not price_match:
+            return "Please specify the price in tokens (e.g., '1000 tokens')."
+        price = int(price_match.group(1))
+        
+        # Extract category
+        category_keywords = {
+            'books': ['book', 'textbook', 'novel', 'magazine', 'journal'],
+            'electronics': ['phone', 'laptop', 'computer', 'electronic', 'device', 'gadget', 'camera', 'headphone'],
+            'clothes': ['shirt', 'dress', 'pants', 'jeans', 'jacket', 'sweater', 'clothing', 'apparel'],
+            'stationery': ['pen', 'pencil', 'notebook', 'paper', 'folder', 'stationery', 'office'],
+            'misc': ['misc', 'other', 'various', 'assorted']
+        }
+        
+        category = 'misc'  # default
+        for cat, keywords in category_keywords.items():
+            if any(keyword in product_description.lower() for keyword in keywords):
+                category = cat
+                break
+        
+        # Extract condition
+        condition_keywords = {
+            'new': ['new', 'brand new', 'unused'],
+            'like_new': ['like new', 'excellent', 'perfect'],
+            'good': ['good', 'well maintained', 'decent'],
+            'fair': ['fair', 'acceptable', 'used'],
+            'poor': ['poor', 'worn', 'damaged']
+        }
+        
+        condition = 'good'  # default
+        for cond, keywords in condition_keywords.items():
+            if any(keyword in product_description.lower() for keyword in keywords):
+                condition = cond
+                break
+        
+        # Extract description (use the original input as description)
+        description = product_description
+        
+        # Extract image URL if provided
+        image_url_match = re.search(r'image[:\s]+(https?://[^\s]+)', product_description, re.IGNORECASE)
+        image_url = image_url_match.group(1) if image_url_match else ""
+        
+        # Validate required fields
+        if not title or title == "Untitled Product":
+            return "Please provide a title for your product."
+        
+        if price <= 0:
+            return "Please provide a valid price greater than 0 tokens."
+        
+        if category not in ['books', 'electronics', 'clothes', 'stationery', 'misc']:
+            return "Please specify a valid category: books, electronics, clothes, stationery, or misc."
+        
+        if condition not in ['new', 'like_new', 'good', 'fair', 'poor']:
+            return "Please specify a valid condition: new, like_new, good, fair, or poor."
+        
+        # Prepare product data
+        product_data = {
+            "title": title,
+            "description": description,
+            "price": price,
+            "category": category,
+            "condition": condition,
+            "sellerId": current_user_id if current_user_id else "default_user",
+            "imageUrl": image_url
+        }
+        
+        # Create the product
+        res = requests.post("http://localhost:5005/api/products", json=product_data)
+        
+        if res.status_code == 201:
+            product = res.json()
+            return f"✅ Product successfully enlisted!\n\n**{product['title']}**\nCategory: {product['category']}\nPrice: {product['price']} tokens\nCondition: {product['condition']}\n\nYour product is now available in the marketplace!"
+        else:
+            error_data = res.json()
+            return f"❌ Failed to enlist product: {error_data.get('message', 'Unknown error')}"
+            
+    except Exception as e:
+        return f"Error enlisting product: {str(e)}"
 
 def get_user_token_balance(user_id: str) -> str:
     """Get the token balance for a specific user."""
@@ -240,6 +336,11 @@ tools = [
         name="get_product_detail",
         description="Get detailed info about a product by its ID. Use this when users want specific information about a product.",
         func=get_product_detail
+    ),
+    StructuredTool.from_function(
+        name="enlist_product",
+        description="Enlist a product for sale using natural language description. The user should provide: title, description, price in tokens, category, condition, and optionally image URL. Categories: books, electronics, clothes, stationery, misc. Conditions: new, like_new, good, fair, poor. Use this when users want to sell a product.",
+        func=enlist_product
     ),
     StructuredTool.from_function(
         name="get_user_token_balance",
