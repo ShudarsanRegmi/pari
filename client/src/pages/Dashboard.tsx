@@ -1,7 +1,7 @@
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/lib/useAuth';
-import { Product, Transaction } from '@shared/schema';
+import { Product } from '@shared/schema';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
@@ -30,8 +30,32 @@ import {
   Star,
   Tag,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Coins
 } from 'lucide-react';
+
+// Token transaction interface
+interface TokenTransaction {
+  _id: string;
+  userId: string;
+  type: 'purchase' | 'sale' | 'reward' | 'load';
+  amount: number;
+  description: string;
+  productId?: string;
+  sellerId?: string;
+  buyerId?: string;
+  status: 'completed' | 'pending' | 'failed';
+  createdAt: string;
+}
+
+// Token balance interface
+interface TokenBalance {
+  _id: string;
+  userId: string;
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+}
 
 const Dashboard = () => {
   const { currentUser, loading, logout } = useAuth();
@@ -70,9 +94,15 @@ const Dashboard = () => {
     enabled: !!currentUser?.mongoUser?._id,
   });
 
-  // Fetch user's transactions
-  const { data: userTransactions, isLoading: isLoadingTransactions } = useQuery<Transaction[]>({
-    queryKey: [`/api/transactions/user/${currentUser?.mongoUser?._id}`],
+  // Fetch user's token balance
+  const { data: tokenBalance, isLoading: isLoadingTokenBalance } = useQuery<TokenBalance>({
+    queryKey: [`/api/tokens/balance/${currentUser?.mongoUser?._id}`],
+    enabled: !!currentUser?.mongoUser?._id,
+  });
+
+  // Fetch user's token transactions
+  const { data: tokenTransactions, isLoading: isLoadingTokenTransactions } = useQuery<TokenTransaction[]>({
+    queryKey: [`/api/tokens/transactions/${currentUser?.mongoUser?._id}`],
     enabled: !!currentUser?.mongoUser?._id,
   });
   
@@ -86,7 +116,7 @@ const Dashboard = () => {
       // Invalidate product queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/transactions/user/${currentUser?.mongoUser?._id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tokens/transactions/${currentUser?.mongoUser?._id}`] });
       
       toast({
         title: "Product Marked as Sold!",
@@ -124,9 +154,8 @@ const Dashboard = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const formatCurrency = (amount: number) => {
-    // Convert from paisa to rupees
-    return `₹${(amount / 100).toFixed(2)}`;
+  const formatTokens = (amount: number) => {
+    return `${amount} tokens`;
   };
 
   const formatDate = (date: Date) => {
@@ -141,13 +170,15 @@ const Dashboard = () => {
   const activeListings = userProducts?.filter(p => !p.isSold)?.length || 0;
   const soldItems = userProducts?.filter(p => p.isSold)?.length || 0;
   
-  const totalEarnings = userTransactions
+  const totalEarnings = tokenTransactions
     ?.filter(t => t.type === 'sale' && t.status === 'completed' && t.sellerId === currentUser?.mongoUser?._id)
     ?.reduce((sum, t) => sum + t.amount, 0) || 0;
   
-  const pendingPayments = userTransactions
-    ?.filter(t => t.status === 'pending' && t.sellerId === currentUser?.mongoUser?._id)
-    ?.reduce((sum, t) => sum + t.amount, 0) || 0;
+  const totalSpent = tokenTransactions
+    ?.filter(t => t.type === 'purchase' && t.status === 'completed' && t.buyerId === currentUser?.mongoUser?._id)
+    ?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
+
+  const currentBalance = tokenBalance?.balance || 0;
 
   return (
     <>
@@ -213,26 +244,26 @@ const Dashboard = () => {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Token Balance</CardTitle>
+                  <Coins className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(totalEarnings)}</div>
+                  <div className="text-2xl font-bold">{formatTokens(currentBalance)}</div>
                   <p className="text-xs text-muted-foreground">
-                    From completed sales
+                    Available tokens
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(pendingPayments)}</div>
+                  <div className="text-2xl font-bold">{formatTokens(totalEarnings)}</div>
                   <p className="text-xs text-muted-foreground">
-                    Awaiting completion
+                    From completed sales
                   </p>
                 </CardContent>
               </Card>
@@ -270,7 +301,7 @@ const Dashboard = () => {
                             </div>
                             <div>
                               <p className="font-medium text-gray-800">{product.title}</p>
-                              <p className="text-sm text-gray-500">{formatCurrency(product.price)}</p>
+                              <p className="text-sm text-gray-500">{formatTokens(product.price ?? 0)}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -297,13 +328,13 @@ const Dashboard = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Transactions</CardTitle>
+                  <CardTitle>Recent Token Transactions</CardTitle>
                   <CardDescription>
                     Your latest buying and selling activity
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoadingTransactions ? (
+                  {isLoadingTokenTransactions ? (
                     <div className="space-y-4">
                       {[...Array(3)].map((_, i) => (
                         <div key={i} className="flex items-center space-x-4">
@@ -315,9 +346,9 @@ const Dashboard = () => {
                         </div>
                       ))}
                     </div>
-                  ) : userTransactions && userTransactions.length > 0 ? (
+                  ) : tokenTransactions && tokenTransactions.length > 0 ? (
                     <div className="space-y-4">
-                      {userTransactions.slice(0, 3).map((transaction) => (
+                      {tokenTransactions.slice(0, 3).map((transaction) => (
                         <div key={transaction._id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
@@ -325,9 +356,11 @@ const Dashboard = () => {
                             </div>
                             <div>
                               <p className="font-medium text-gray-800">
-                                {transaction.type === 'sale' ? 'Sale' : 'Purchase'}
+                                {transaction.type === 'sale' ? 'Sale' : 
+                                 transaction.type === 'purchase' ? 'Purchase' :
+                                 transaction.type === 'reward' ? 'Reward' : 'Load'}
                               </p>
-                              <p className="text-sm text-gray-500">{formatCurrency(transaction.amount)}</p>
+                              <p className="text-sm text-gray-500">{formatTokens(Math.abs(transaction.amount))}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -403,7 +436,7 @@ const Dashboard = () => {
                           className="bg-green-600 hover:bg-green-700 text-white" 
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent card click
-                            markProductAsSold(product._id);
+                            markProductAsSold(product._id!);
                           }}
                         >
                           Mark as Sold
@@ -436,7 +469,7 @@ const Dashboard = () => {
               <p className="text-gray-600">Items you've bought from other sellers</p>
             </div>
 
-            {isLoadingTransactions ? (
+            {isLoadingTokenTransactions ? (
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="bg-white rounded-lg p-4 shadow-sm">
@@ -451,9 +484,9 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            ) : userTransactions && userTransactions.length > 0 ? (
+            ) : tokenTransactions && tokenTransactions.length > 0 ? (
               <div className="space-y-4">
-                {userTransactions
+                {tokenTransactions
                   .filter(t => t.type === 'purchase')
                   .map((transaction) => (
                     <div key={transaction._id} className="bg-white rounded-lg p-4 shadow-sm">
@@ -464,11 +497,11 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <p className="font-medium text-gray-800">Purchase</p>
-                            <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                            <p className="text-sm text-gray-500">{formatDate(new Date(transaction.createdAt))}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-gray-800">{formatCurrency(transaction.amount)}</p>
+                          <p className="font-semibold text-gray-800">{formatTokens(Math.abs(transaction.amount))}</p>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
                             transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -499,7 +532,7 @@ const Dashboard = () => {
               <p className="text-gray-600">Complete history of your buying and selling activity</p>
             </div>
 
-            {isLoadingTransactions ? (
+            {isLoadingTokenTransactions ? (
               <div className="space-y-4">
                 {[...Array(10)].map((_, i) => (
                   <div key={i} className="bg-white rounded-lg p-4 shadow-sm">
@@ -519,9 +552,9 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            ) : userTransactions && userTransactions.length > 0 ? (
+            ) : tokenTransactions && tokenTransactions.length > 0 ? (
               <div className="space-y-4">
-                {userTransactions.map((transaction) => (
+                {tokenTransactions.map((transaction) => (
                   <div key={transaction._id} className="bg-white rounded-lg p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
@@ -534,13 +567,15 @@ const Dashboard = () => {
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">
-                            {transaction.type === 'sale' ? 'Sale' : 'Purchase'}
+                            {transaction.type === 'sale' ? 'Sale' : 
+                             transaction.type === 'purchase' ? 'Purchase' :
+                             transaction.type === 'reward' ? 'Reward' : 'Load'}
                           </p>
-                          <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                          <p className="text-sm text-gray-500">{formatDate(new Date(transaction.createdAt))}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-gray-800">{formatCurrency(transaction.amount)}</p>
+                        <p className="font-semibold text-gray-800">{formatTokens(Math.abs(transaction.amount))}</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
                           transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
