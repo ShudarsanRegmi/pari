@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ZodError } from "zod";
 import { z } from "zod";
+import { upload, getFileUrl } from "./upload";
 import { 
   reviewValidationSchema,
   insertTransactionSchema,
@@ -39,6 +40,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // API Routes
+  // File Upload
+  app.post("/api/upload", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const fileUrl = getFileUrl(req.file.filename);
+      res.json({ 
+        success: true, 
+        filename: req.file.filename,
+        url: fileUrl 
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ message: "Upload failed" });
+    }
+  });
+
   // Products
   app.get("/api/products", async (req, res) => {
     try {

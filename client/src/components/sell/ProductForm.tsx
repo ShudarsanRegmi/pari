@@ -93,7 +93,7 @@ const ProductForm = () => {
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     if (!currentUser) {
       toast({
         title: "Authentication Required",
@@ -107,8 +107,30 @@ const ProductForm = () => {
     setIsSubmitting(true);
 
     try {
-      // Handle image (simplified for demo)
-      let imageUrl = imagePreview;
+      // Handle image upload
+      let imageUrl = null;
+      if (data.image && data.image.length > 0) {
+        const formData = new FormData();
+        formData.append('image', data.image[0]);
+        
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          imageUrl = uploadResult.url;
+        } else {
+          toast({
+            title: "Image Upload Failed",
+            description: "Could not upload image. Please try again.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
 
       // Create the product
       const sellerId = currentUser?.mongoUser?._id;
@@ -141,7 +163,7 @@ const ProductForm = () => {
           description: "Listing fee for " + data.title,
           metadata: {
             productId: product._id,
-            sellerId: currentUser?.mongoUser?._id || currentUser?.id || 1,
+            sellerId: currentUser?.mongoUser?._id || 1,
           },
         });
 
@@ -151,7 +173,7 @@ const ProductForm = () => {
           
           // Invalidate relevant queries
           queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-          queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id || currentUser?.id || 1}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id || 1}`] });
           
           // Show success message
           setShowSuccess(true);
