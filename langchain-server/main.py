@@ -709,6 +709,80 @@ def enlist_product(product_description: str) -> str:
     except Exception as e:
         return f"Error enlisting product: {str(e)}"
 
+def buy_product_by_name(product_name: str) -> str:
+    """Buy a product by its name using the current user's tokens."""
+    global current_user_id
+    
+    if not current_user_id:
+        return "Please provide your user ID to make a purchase."
+    
+    try:
+        # First, get all products to find the one by name
+        res = requests.get("http://localhost:5005/api/products")
+        if res.status_code != 200:
+            return "Could not retrieve products from the marketplace."
+        
+        products = res.json()
+        if not products:
+            return "No products available in the marketplace."
+        
+        # Find the product by name with fuzzy matching
+        target_product = None
+        product_name_lower = product_name.lower()
+        
+        # First try exact match
+        for product in products:
+            if product.get('title', '').lower() == product_name_lower:
+                target_product = product
+                break
+        
+        # If no exact match, try partial match
+        if not target_product:
+            for product in products:
+                title_lower = product.get('title', '').lower()
+                if (product_name_lower in title_lower or 
+                    title_lower in product_name_lower or
+                    any(word in title_lower for word in product_name_lower.split())):
+                    target_product = product
+                    break
+        
+        if not target_product:
+            return f"Product '{product_name}' not found in the marketplace."
+        
+        # Check if product is already sold
+        if target_product.get('sold', False):
+            return f"Sorry, '{target_product['title']}' has already been sold."
+        
+        # Get user's token balance
+        balance_res = requests.get(f"http://localhost:5005/api/tokens/balance/{current_user_id}")
+        if balance_res.status_code != 200:
+            return "Could not retrieve your token balance."
+        
+        balance_data = balance_res.json()
+        user_balance = balance_data.get('balance', 0)
+        product_price = target_product.get('price', 0)
+        
+        # Check if user has enough tokens
+        if user_balance < product_price:
+            return f"Insufficient tokens. You have {user_balance} tokens, but '{target_product['title']}' costs {product_price} tokens."
+        
+        # Make the purchase
+        purchase_data = {
+            "productId": target_product['_id'],
+            "buyerId": current_user_id
+        }
+        
+        purchase_res = requests.post("http://localhost:5005/api/tokens/purchase", json=purchase_data)
+        
+        if purchase_res.status_code == 200:
+            return f"✅ Purchase successful!\n\n**{target_product['title']}**\nPrice: {product_price} tokens\n\nYour purchase has been completed. The product is now yours!"
+        else:
+            error_data = purchase_res.json()
+            return f"❌ Purchase failed: {error_data.get('message', 'Unknown error')}"
+            
+    except Exception as e:
+        return f"Error making purchase: {str(e)}"
+
 def get_user_token_balance(user_id: str) -> str:
     """Get the token balance for a specific user."""
     try:
@@ -1008,6 +1082,11 @@ tools = [
         func=enlist_product
     ),
     StructuredTool.from_function(
+        name="buy_product_by_name",
+        description="Buy a product by its name using the current user's tokens. The user should provide the product name. Use this when users want to purchase a product. The system will automatically check token balance and complete the purchase.",
+        func=buy_product_by_name
+    ),
+    StructuredTool.from_function(
         name="get_user_token_balance",
         description="Get the token balance for the current user. Use this when users ask about their token balance. No user ID needed - it's automatically provided.",
         func=get_user_token_balance_wrapped
@@ -1050,6 +1129,13 @@ For example:
 - You should call: `enlist_product("I want to sell a watch for around 200 tokens, it's only used for 10 days")`
 - Do NOT ask: "What's the title? What's the price? What's the category?"
 
+IMPORTANT: When users want to buy a product, ALWAYS use the `buy_product_by_name` tool with the product name. The system will automatically check their token balance and complete the purchase.
+
+For example:
+- User says: "I want to buy the mobile phone" or "buy mobile phone"
+- You should call: `buy_product_by_name("mobile phone")`
+- Do NOT ask for additional details - just use the product name they provide
+
 The `enlist_product` tool can intelligently extract:
 - Product title from the description
 - Price from numbers and "tokens" mentions
@@ -1070,7 +1156,8 @@ You have access to various tools to help users with:
 3. Sustainable living tips
 4. Platform help and guidance
 5. Product enlistment (use enlist_product tool for this)
-6. Reward system questions (use reward_system_qa tool for this)
+6. Product purchasing (use buy_product_by_name tool for this)
+7. Reward system questions (use reward_system_qa tool for this)
 
 Always be helpful, friendly, and focus on sustainability and community building. Provide specific, actionable information about earning tokens."""
 
