@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, X, User, LogOut, ShoppingBag, Settings, Leaf } from 'lucide-react';
+import { Menu, X, User, LogOut, ShoppingBag, Settings, Leaf, Bot } from 'lucide-react';
 import { FaRecycle } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -100,6 +100,11 @@ const Navbar = () => {
                       <Leaf className="mr-2 h-4 w-4" /> My Tokens
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/chatbot" className="cursor-pointer flex items-center">
+                      <Bot className="mr-2 h-4 w-4" /> AI Assistant
+                    </Link>
+                  </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin" className="cursor-pointer flex items-center">
@@ -172,6 +177,13 @@ const Navbar = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 My Tokens
+              </Link>
+              <Link 
+                href="/chatbot" 
+                className={`${location === '/chatbot' ? 'bg-primary-50 border-primary-500 text-primary-500' : 'border-transparent text-gray-700 hover:bg-gray-100 hover:text-primary-500'} block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                AI Assistant
               </Link>
               {isAdmin && (
                 <Link 

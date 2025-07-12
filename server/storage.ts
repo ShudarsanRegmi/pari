@@ -244,7 +244,7 @@ export class MongoStorage {
             sellerId,
             buyerId
           }
-        ], { session, ordered: true });
+        ], { session });
       });
 
       return { success: true };

@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { Plus, ShoppingCart } from 'lucide-react';
+import { Plus, ShoppingCart, Bot } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 
 const FloatingActionButton = () => {
@@ -20,6 +20,12 @@ const FloatingActionButton = () => {
           </button>
         </Link>
       )}
+      
+      <Link href="/chatbot">
+        <button className="w-14 h-14 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg hover:bg-green-600 transition duration-300">
+          <Bot className="h-6 w-6" />
+        </button>
+      </Link>
     </div>
   );
 };
