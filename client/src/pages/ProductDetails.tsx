@@ -25,7 +25,6 @@ const ProductDetails = () => {
   const [match, params] = useRoute('/product/:id');
   const productId = match ? params.id : null;
   
-  const [showContactModal, setShowContactModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
 
   // Fetch product details
@@ -60,7 +59,6 @@ const ProductDetails = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/contact-access/check?productId=${productId}&buyerId=${currentUser?.mongoUser?._id}`] });
-      setShowContactModal(true);
       toast({
         title: "Contact Access Granted!",
         description: "You can now contact the seller about this item.",
@@ -80,7 +78,8 @@ const ProductDetails = () => {
     return `₹${(amount / 100).toFixed(2)}`;
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return 'Unknown date';
     return new Date(date).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -198,7 +197,7 @@ const ProductDetails = () => {
             <div>
               <div className="relative">
                 <img
-                  src={product.images?.[selectedImage] || '/placeholder-product.jpg'}
+                  src={product.imageUrl || '/placeholder-product.jpg'}
                   alt={product.title}
                   className="w-full h-96 object-cover rounded-lg"
                 />
@@ -211,24 +210,12 @@ const ProductDetails = () => {
                 )}
               </div>
               
-              {/* Thumbnail Images */}
-              {product.images && product.images.length > 1 && (
-                <div className="flex space-x-2 mt-4">
-                  {product.images.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                        selectedImage === index ? 'border-primary-500' : 'border-gray-200'
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`${product.title} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
+              {/* Show image info if available */}
+              {product.imageUrl && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    Product image uploaded by seller
+                  </p>
                 </div>
               )}
             </div>
@@ -284,13 +271,15 @@ const ProductDetails = () => {
                 {!product.isSold && !isOwner && (
                   <>
                     {canContact ? (
-                      <Button 
-                        onClick={() => setShowContactModal(true)}
-                        className="flex-1 bg-primary-500 hover:bg-primary-600"
-                      >
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Contact Seller
-                      </Button>
+                      <ContactSellerModal
+                        product={product}
+                        trigger={
+                          <Button className="flex-1 bg-primary-500 hover:bg-primary-600">
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                            Contact Seller
+                          </Button>
+                        }
+                      />
                     ) : (
                       <Button 
                         onClick={() => createContactAccessMutation.mutate()}
@@ -427,14 +416,6 @@ const ProductDetails = () => {
         </div>
       </div>
 
-      {/* Contact Seller Modal */}
-      {showContactModal && product && (
-        <ContactSellerModal
-          product={product}
-          isOpen={showContactModal}
-          onClose={() => setShowContactModal(false)}
-        />
-      )}
     </>
   );
 };
