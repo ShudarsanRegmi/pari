@@ -61,6 +61,19 @@ export class MongoStorage {
     return created.toObject();
   }
 
+  async updateEcoImpact(userId: string, ecoImpact: number) {
+    return User.findByIdAndUpdate(
+      userId, 
+      { ecoImpact }, 
+      { new: true }
+    ).lean();
+  }
+
+  async getEcoImpact(userId: string) {
+    const user = await User.findById(userId).lean();
+    return user?.ecoImpact || 0;
+  }
+
   // Product operations
   async getProduct(id: string) {
     return Product.findById(id).lean();
@@ -247,7 +260,7 @@ export class MongoStorage {
             sellerId,
             buyerId
           }
-        ], { session });
+        ], { session, ordered: true });
       });
 
       return { success: true };

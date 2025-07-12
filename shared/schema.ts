@@ -11,6 +11,7 @@ export const userSchema = z.object({
   photoURL: z.string().optional(),
   role: z.enum(['user', 'admin']).default('user'),
   password: z.string(),
+  ecoImpact: z.number().default(0), // Carbon footprint savings in kg CO2
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
 });

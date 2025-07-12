@@ -34,7 +34,8 @@ import {
   Coins,
   Edit,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Leaf
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -135,6 +136,12 @@ const Dashboard = () => {
   // Fetch user's token transactions
   const { data: tokenTransactions, isLoading: isLoadingTokenTransactions } = useQuery<TokenTransaction[]>({
     queryKey: [`/api/tokens/transactions/${currentUser?.mongoUser?._id}`],
+    enabled: !!currentUser?.mongoUser?._id,
+  });
+
+  // Fetch user's EcoImpact
+  const { data: ecoImpact, isLoading: isLoadingEcoImpact } = useQuery<{ ecoImpact: number }>({
+    queryKey: [`/api/eco-impact/${currentUser?.mongoUser?._id}`],
     enabled: !!currentUser?.mongoUser?._id,
   });
   
@@ -312,14 +319,14 @@ const Dashboard = () => {
             <p className="text-gray-600 mt-1">Welcome back, {currentUser.displayName || currentUser.email}</p>
           </div>
           <div className="flex items-center space-x-4">
-            <Button onClick={() => setLocation('/sell')} className="bg-primary-500 hover:bg-primary-600">
+          <Button onClick={() => setLocation('/sell')} className="bg-primary-500 hover:bg-primary-600">
               <PlusCircle className="mr-2 h-4 w-4" />
               List Item
             </Button>
             <Button variant="outline" onClick={logout}>
               Logout
-            </Button>
-          </div>
+          </Button>
+        </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
@@ -330,10 +337,10 @@ const Dashboard = () => {
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="overview" className="space-y-6">
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Listings</CardTitle>
@@ -385,52 +392,67 @@ const Dashboard = () => {
                   </p>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">EcoImpact</CardTitle>
+                  <Leaf className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {isLoadingEcoImpact ? '...' : `${ecoImpact?.ecoImpact || 0} kg`}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    CO₂ saved
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Listings</CardTitle>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Listings</CardTitle>
                   <CardDescription>
                     Your most recent items for sale
                   </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingProducts ? (
-                    <div className="space-y-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center space-x-4">
-                          <Skeleton className="h-12 w-12 rounded" />
-                          <div className="space-y-2">
-                            <Skeleton className="h-4 w-40" />
-                            <Skeleton className="h-4 w-20" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : userProducts && userProducts.length > 0 ? (
-                    <div className="space-y-4">
-                      {userProducts.slice(0, 3).map((product) => (
-                        <div key={product._id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                              <Tag className="h-6 w-6 text-gray-400" />
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingProducts ? (
+                      <div className="space-y-4">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="flex items-center space-x-4">
+                            <Skeleton className="h-12 w-12 rounded" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-40" />
+                              <Skeleton className="h-4 w-20" />
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-800">{product.title}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : userProducts && userProducts.length > 0 ? (
+                      <div className="space-y-4">
+                        {userProducts.slice(0, 3).map((product) => (
+                        <div key={product._id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                <Tag className="h-6 w-6 text-gray-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-800">{product.title}</p>
                               <p className="text-sm text-gray-500">{formatTokens(product.price ?? 0)}</p>
                             </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-xs px-2 py-1 rounded-full ${product.isSold ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                                {product.isSold ? 'Sold' : 'Active'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <span className={`text-xs px-2 py-1 rounded-full ${product.isSold ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                              {product.isSold ? 'Sold' : 'Active'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                        ))}
+                      </div>
+                    ) : (
                     <div className="text-center py-8">
                       <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">No listings yet</h3>
@@ -438,42 +460,42 @@ const Dashboard = () => {
                       <Button onClick={() => setLocation('/sell')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         List Your First Item
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
                   <CardTitle>Recent Token Transactions</CardTitle>
                   <CardDescription>
                     Your latest buying and selling activity
                   </CardDescription>
-                </CardHeader>
-                <CardContent>
+                  </CardHeader>
+                  <CardContent>
                   {isLoadingTokenTransactions ? (
-                    <div className="space-y-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center space-x-4">
+                      <div className="space-y-4">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="flex items-center space-x-4">
                           <Skeleton className="h-12 w-12 rounded" />
-                          <div className="space-y-2">
-                            <Skeleton className="h-4 w-40" />
-                            <Skeleton className="h-4 w-20" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-40" />
+                              <Skeleton className="h-4 w-20" />
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
                   ) : tokenTransactions && tokenTransactions.length > 0 ? (
-                    <div className="space-y-4">
+                      <div className="space-y-4">
                       {tokenTransactions.slice(0, 3).map((transaction) => (
                         <div key={transaction._id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
-                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
                               <CreditCard className="h-6 w-6 text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-800">
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-800">
                                 {transaction.type === 'sale' ? 'Sale' : 
                                  transaction.type === 'purchase' ? 'Purchase' :
                                  transaction.type === 'reward' ? 'Reward' : 'Load'}
@@ -489,20 +511,20 @@ const Dashboard = () => {
                             }`}>
                               {transaction.status}
                             </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                        ))}
+                      </div>
+                    ) : (
                     <div className="text-center py-8">
                       <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-700 mb-2">No transactions yet</h3>
                       <p className="text-gray-500">Your buying and selling activity will appear here</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
           </TabsContent>
 
           <TabsContent value="listings" className="space-y-6">
@@ -510,44 +532,44 @@ const Dashboard = () => {
               <div>
                 <h2 className="text-2xl font-display font-bold text-gray-800">My Listings</h2>
                 <p className="text-gray-600">Manage your items for sale</p>
-              </div>
+                    </div>
               <Button onClick={() => setLocation('/sell')} className="bg-primary-500 hover:bg-primary-600">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add New Listing
               </Button>
-            </div>
-
-            {isLoadingProducts ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-lg">
-                    <Skeleton className="h-48 w-full" />
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-4">
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-6 w-1/4" />
-                      </div>
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-5/6 mb-3" />
-                      <div className="flex justify-between">
-                        <Skeleton className="h-4 w-1/3" />
-                        <Skeleton className="h-4 w-1/4" />
-                      </div>
-                    </div>
                   </div>
-                ))}
-              </div>
-            ) : userProducts && userProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userProducts.map((product) => (
-                  <div key={product._id} className="relative">
-                    {product.isSold ? (
-                      <div className="absolute inset-0 bg-white bg-opacity-75 z-10 flex items-center justify-center">
-                        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium text-sm">
-                          Sold
+
+                  {isLoadingProducts ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                        <div key={i} className="bg-white rounded-xl overflow-hidden shadow-lg">
+                          <Skeleton className="h-48 w-full" />
+                          <div className="p-5">
+                            <div className="flex justify-between items-start mb-4">
+                              <Skeleton className="h-6 w-3/4" />
+                              <Skeleton className="h-6 w-1/4" />
+                            </div>
+                            <Skeleton className="h-4 w-full mb-2" />
+                            <Skeleton className="h-4 w-5/6 mb-3" />
+                            <div className="flex justify-between">
+                              <Skeleton className="h-4 w-1/3" />
+                              <Skeleton className="h-4 w-1/4" />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
+                      ))}
+                    </div>
+                  ) : userProducts && userProducts.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {userProducts.map((product) => (
+                  <div key={product._id} className="relative">
+                          {product.isSold ? (
+                            <div className="absolute inset-0 bg-white bg-opacity-75 z-10 flex items-center justify-center">
+                              <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium text-sm">
+                                Sold
+                              </div>
+                            </div>
+                          ) : (
                       <div className="absolute top-2 right-2 z-10 flex space-x-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -565,7 +587,7 @@ const Dashboard = () => {
                               className="text-green-600"
                             >
                               <ShoppingBag className="mr-2 h-4 w-4" />
-                              Mark as Sold
+                                Mark as Sold
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => deleteProduct(product._id!)}
@@ -576,37 +598,37 @@ const Dashboard = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </div>
-                    )}
-                    <ProductCard 
-                      product={product} 
+                            </div>
+                          )}
+                          <ProductCard 
+                            product={product} 
                       onClick={() => setLocation(`/product/${product._id}`)} 
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
               <div className="text-center py-16 bg-gray-50 rounded-lg">
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-700 mb-2">No listings yet</h3>
                 <p className="text-gray-500 mb-6">Start selling your items to see them here</p>
-                <Button onClick={() => setLocation('/sell')} className="bg-primary-500 hover:bg-primary-600">
+                      <Button onClick={() => setLocation('/sell')} className="bg-primary-500 hover:bg-primary-600">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  List Your First Item
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
+                        List Your First Item
+                      </Button>
+                    </div>
+                  )}
+            </TabsContent>
+            
           <TabsContent value="purchases" className="space-y-6">
             <div>
               <h2 className="text-2xl font-display font-bold text-gray-800">My Purchases</h2>
               <p className="text-gray-600">Items you've bought from other sellers</p>
-            </div>
+                  </div>
 
             {isLoadingTokenTransactions ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
                   <div key={i} className="bg-white rounded-lg p-4 shadow-sm">
                     <div className="flex items-center space-x-4">
                       <Skeleton className="h-12 w-12 rounded" />
@@ -615,12 +637,12 @@ const Dashboard = () => {
                         <Skeleton className="h-4 w-1/2" />
                       </div>
                       <Skeleton className="h-8 w-20" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
             ) : tokenTransactions && tokenTransactions.length > 0 ? (
-              <div className="space-y-4">
+                    <div className="space-y-4">
                 {tokenTransactions
                   .filter(t => t.type === 'purchase')
                   .map((transaction) => (
@@ -662,7 +684,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-6">
-            <div>
+                      <div>
               <h2 className="text-2xl font-display font-bold text-gray-800">Transaction History</h2>
               <p className="text-gray-600">Complete history of your buying and selling activity</p>
             </div>
@@ -683,10 +705,10 @@ const Dashboard = () => {
                         <Skeleton className="h-4 w-20" />
                         <Skeleton className="h-6 w-16" />
                       </div>
-                    </div>
-                  </div>
+                            </div>
+                          </div>
                 ))}
-              </div>
+                            </div>
             ) : tokenTransactions && tokenTransactions.length > 0 ? (
               <div className="space-y-4">
                 {tokenTransactions.map((transaction) => (
@@ -699,7 +721,7 @@ const Dashboard = () => {
                           ) : (
                             <ArrowDownRight className="h-6 w-6 text-blue-500" />
                           )}
-                        </div>
+                          </div>
                         <div>
                           <p className="font-medium text-gray-800">
                             {transaction.type === 'sale' ? 'Sale' : 
@@ -718,9 +740,9 @@ const Dashboard = () => {
                         }`}>
                           {transaction.status}
                         </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
                 ))}
               </div>
             ) : (
@@ -783,10 +805,10 @@ const Dashboard = () => {
                     <Star className="mr-2 h-4 w-4" />
                     View Reviews
                   </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
         </Tabs>
       </div>
 

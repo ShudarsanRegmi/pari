@@ -435,5 +435,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // EcoImpact routes
+  app.get("/api/eco-impact/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const ecoImpact = await storage.getEcoImpact(userId);
+      res.json({ ecoImpact });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  app.patch("/api/eco-impact/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { ecoImpact } = req.body;
+      
+      if (typeof ecoImpact !== 'number' || ecoImpact < 0) {
+        return res.status(400).json({ message: "EcoImpact must be a positive number" });
+      }
+      
+      const updatedUser = await storage.updateEcoImpact(userId, ecoImpact);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ ecoImpact: updatedUser.ecoImpact });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
   return httpServer;
 }

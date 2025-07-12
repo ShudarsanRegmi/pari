@@ -27,6 +27,12 @@ const Navbar = () => {
     enabled: !!currentUser?.mongoUser?._id,
   });
 
+  // Fetch EcoImpact for logged-in users
+  const { data: ecoImpact } = useQuery<{ecoImpact: number}>({
+    queryKey: [`/api/eco-impact/${currentUser?.mongoUser?._id}`],
+    enabled: !!currentUser?.mongoUser?._id,
+  });
+
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -63,6 +69,14 @@ const Navbar = () => {
                 <Leaf className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-700">
                   {tokenBalance.balance.toLocaleString()} tokens
+                </span>
+              </div>
+            )}
+            {currentUser && ecoImpact && (
+              <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                <Leaf className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">
+                  {ecoImpact.ecoImpact} kg CO₂ saved
                 </span>
               </div>
             )}

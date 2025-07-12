@@ -6,6 +6,7 @@ export const UserSchema = new Schema({
   displayName: String,
   photoURL: String,
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  ecoImpact: { type: Number, default: 0 }, // Carbon footprint savings in kg CO2
   createdAt: { type: Date, default: Date.now },
   password: { type: String, required: true },
 });
