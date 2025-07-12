@@ -9,6 +9,7 @@ from langchain.agents import initialize_agent
 from langchain.agents.agent_types import AgentType
 from langchain.tools import StructuredTool
 from rag.reward_tool import answer_from_reward_guide
+from typing import Optional
 
 load_dotenv()
 
@@ -28,6 +29,7 @@ app.add_middleware(
 
 class Query(BaseModel):
     user_input: str
+    user_id: Optional[str] = None
 
 # Tool Functions for WebNavigator Product System
 
@@ -128,7 +130,7 @@ def get_user_token_balance(user_id: str) -> str:
         
         data = res.json()
         balance = data.get('balance', 0)
-        return f"User {user_id} has {balance} green tokens."
+        return f"You have {balance} green tokens."
     except Exception as e:
         return f"Error getting token balance: {str(e)}"
 
@@ -141,9 +143,9 @@ def get_user_transactions(user_id: str) -> str:
         
         data = res.json()
         if not data:
-            return f"No transactions found for user {user_id}."
+            return "You have no transactions yet."
         
-        result = []
+        result = ["Your recent transactions:"]
         for transaction in data[:5]:  # Limit to 5 recent transactions
             amount = transaction.get('amount', 0)
             transaction_type = transaction.get('type', 'unknown')
@@ -194,6 +196,28 @@ def get_green_rewards_info() -> str:
     ]
     return "\n".join(info)
 
+# Global variable to store current user ID for the session
+current_user_id = None
+
+def set_current_user_id(user_id: str):
+    """Set the current user ID for the session."""
+    global current_user_id
+    current_user_id = user_id
+
+def get_user_token_balance_wrapped() -> str:
+    """Get the token balance for the current user (no parameters needed)."""
+    global current_user_id
+    if not current_user_id:
+        return "Please log in to check your token balance."
+    return get_user_token_balance(current_user_id)
+
+def get_user_transactions_wrapped() -> str:
+    """Get transaction history for the current user (no parameters needed)."""
+    global current_user_id
+    if not current_user_id:
+        return "Please log in to view your transaction history."
+    return get_user_transactions(current_user_id)
+
 # Tools
 
 tools = [
@@ -219,13 +243,13 @@ tools = [
     ),
     StructuredTool.from_function(
         name="get_user_token_balance",
-        description="Get the token balance for a specific user. Use this when users ask about their token balance.",
-        func=get_user_token_balance
+        description="Get the token balance for the current user. Use this when users ask about their token balance. No user ID needed - it's automatically provided.",
+        func=get_user_token_balance_wrapped
     ),
     StructuredTool.from_function(
         name="get_user_transactions",
-        description="Get transaction history for a specific user. Use this when users want to see their transaction history.",
-        func=get_user_transactions
+        description="Get transaction history for the current user. Use this when users want to see their transaction history. No user ID needed - it's automatically provided.",
+        func=get_user_transactions_wrapped
     ),
     StructuredTool.from_function(
         name="get_sustainable_tips",
@@ -250,6 +274,7 @@ llm = ChatOpenAI(
     openai_api_key=OPENAI_API_KEY
 )
 
+# Create a simple agent without custom prompt template
 agent = initialize_agent(
     tools=tools,
     llm=llm,
@@ -276,6 +301,10 @@ async def health_check():
 @app.post("/chat")
 async def chat(query: Query):
     try:
+        # Set the current user ID for this request
+        if query.user_id:
+            set_current_user_id(query.user_id)
+        
         response = agent.run(query.user_input)
         return {"response": response}
     except Exception as e:

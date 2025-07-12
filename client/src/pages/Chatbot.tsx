@@ -76,7 +76,8 @@ const Chatbot = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_input: input.trim()
+          user_input: input.trim(),
+          user_id: currentUser?.mongoUser?._id || currentUser?.uid || null
         })
       });
 
