@@ -785,21 +785,122 @@ def get_green_rewards_info() -> str:
     return "\n".join(info)
 
 def answer_from_reward_guide(question: str) -> str:
-    """Answer questions about the reward system."""
-    if "tiers" in question.lower():
-        return "WebNavigator has a tiered token system. New users start with 1000 tokens. Earn tokens by recycling, donating, and participating in sustainable activities. Higher tiers offer more rewards."
-    elif "recycling" in question.lower():
-        return "To earn tokens for recycling, ensure you recycle paper, plastic, and electronics properly. This includes sorting, cleaning, and disposing of hazardous materials. You can also donate used products to local charities or recycling centers."
-    elif "donate" in question.lower():
-        return "You can donate used products to local charities, recycling centers, or community initiatives. This not only helps reduce waste but also earns you tokens. Items should be clean, functional, and in good condition."
-    elif "community" in question.lower():
-        return "Participate in community clean-up events, plant trees, or join local sustainability groups. These activities not only help the environment but also earn you tokens. WebNavigator rewards community engagement."
-    elif "sustainable" in question.lower():
-        return "WebNavigator encourages sustainable living. Use reusable bags, water bottles, energy-efficient bulbs, and digital receipts. Walk or bike for short trips. Support local farmers and buy organic when possible."
-    elif "circular" in question.lower():
-        return "WebNavigator promotes a circular economy. By buying and selling second-hand items, you reduce waste and support community sustainability. Compost food waste and fix leaky faucets to contribute to a greener future."
+    """Answer questions about the reward system with simple, clear explanations."""
+    question_lower = question.lower()
+    
+    # Simple reward system explanation
+    basic_reward_info = """🌿 **WebNavigator Reward System**
+
+**How it works:**
+• Start with 1000 green tokens
+• Earn tokens through sustainable actions
+• Use tokens to buy/sell in the marketplace
+• Build a circular economy together
+
+**Earning Tokens:**
+• **Recycling**: 50-200 tokens per item (paper, plastic, electronics)
+• **Donating**: 100-500 tokens per item (clothes, books, furniture)
+• **Selling**: Earn tokens when your items sell
+• **Community Events**: 200-1000 tokens (clean-ups, tree planting)
+• **Sustainable Actions**: 50-300 tokens (using reusable items, walking)"""
+
+    # Specific recycling questions
+    if any(word in question_lower for word in ["recycle", "recycling", "carpet", "furniture", "clothes", "books", "electronics"]):
+        if "carpet" in question_lower:
+            return """For recycling a second-hand carpet:
+• **Donation**: 200-400 tokens (if in good condition)
+• **Recycling Center**: 100-200 tokens (if damaged)
+• **Community Reuse**: 300-500 tokens (if usable)
+
+**Best Practice**: Donate to local charities or community centers for maximum tokens and environmental impact!"""
+        
+        elif "electronics" in question_lower:
+            return """For recycling electronics:
+• **Small items** (phones, laptops): 200-500 tokens
+• **Large items** (TVs, computers): 300-800 tokens
+• **Batteries**: 50-100 tokens per batch
+• **Cables**: 20-50 tokens per bundle
+
+**Important**: Use certified e-waste recyclers for safety and maximum tokens!"""
+        
+        elif "clothes" in question_lower or "furniture" in question_lower:
+            return """For clothes and furniture:
+• **Good condition**: 200-500 tokens (donate to charities)
+• **Fair condition**: 100-300 tokens (community centers)
+• **Damaged**: 50-150 tokens (recycling centers)
+
+**Tip**: Clean and repair items before donating for more tokens!"""
+        
+        else:
+            return f"""{basic_reward_info}
+
+**Recycling Rewards:**
+• Paper/Cardboard: 50-100 tokens per batch
+• Plastic bottles: 20-50 tokens per batch  
+• Glass: 30-80 tokens per batch
+• Metal: 100-300 tokens per batch
+
+**How to earn more**: Sort properly, clean items, and use certified recycling centers!"""
+
+    # Tier system questions
+    elif "tier" in question_lower or "level" in question_lower:
+        return """**Token Tiers:**
+• **Bronze** (0-1000 tokens): Basic access
+• **Silver** (1001-5000 tokens): Priority listings
+• **Gold** (5001-15000 tokens): Featured products
+• **Platinum** (15000+ tokens): VIP benefits
+
+**Earn tokens faster**: Participate in community events and maintain high-quality listings!"""
+
+    # General reward questions
+    elif any(word in question_lower for word in ["token", "earn", "reward", "how many", "points"]):
+        return f"""{basic_reward_info}
+
+**Quick Actions for Tokens:**
+• List a product: 50 tokens
+• Buy a product: Earn seller reputation
+• Complete profile: 100 tokens
+• Refer friends: 200 tokens each
+• Weekly login: 25 tokens
+
+**Sustainable Actions:**
+• Use reusable bags: 50 tokens
+• Walk/bike instead of drive: 100 tokens
+• Use energy-efficient bulbs: 75 tokens
+• Compost food waste: 150 tokens
+
+**Community Participation:**
+• Join clean-up events: 200-1000 tokens
+• Plant trees: 300-500 tokens
+• Share sustainability tips: 50-100 tokens"""
+
+    # Donation questions
+    elif "donate" in question_lower or "donation" in question_lower:
+        return """**Donation Rewards:**
+• **Clothes**: 100-300 tokens (clean, wearable)
+• **Books**: 50-200 tokens (good condition)
+• **Furniture**: 200-500 tokens (functional)
+• **Electronics**: 150-400 tokens (working)
+• **Toys**: 50-150 tokens (complete sets)
+
+**Best Practices:**
+• Clean items before donating
+• Ensure items are functional
+• Donate to local charities
+• Get donation receipts for verification"""
+
+    # Default response
     else:
-        return "I can help you understand the token system and how to earn tokens. How can I assist you further?"
+        return f"""{basic_reward_info}
+
+**Need specific info?** Ask about:
+• Recycling specific items (carpets, electronics, etc.)
+• Token tiers and levels
+• Donation rewards
+• Community participation
+• Sustainable living tips
+
+I'm here to help you earn tokens and build a sustainable community! 🚀"""
 
 # Global variable to store current user ID for the session
 current_user_id = None
@@ -956,14 +1057,22 @@ The `enlist_product` tool can intelligently extract:
 - Condition from usage descriptions
 - Description from the full input
 
+**Reward System Questions**: When users ask about the reward system, recycling, tokens, or earning points, use the `reward_system_qa` tool. This tool provides detailed, specific answers about:
+- How many tokens for specific items (carpets, electronics, clothes, etc.)
+- Token tiers and levels
+- Donation rewards
+- Community participation rewards
+- Sustainable action rewards
+
 You have access to various tools to help users with:
 1. Product search and browsing
 2. Token balance and transactions
 3. Sustainable living tips
 4. Platform help and guidance
 5. Product enlistment (use enlist_product tool for this)
+6. Reward system questions (use reward_system_qa tool for this)
 
-Always be helpful, friendly, and focus on sustainability and community building."""
+Always be helpful, friendly, and focus on sustainability and community building. Provide specific, actionable information about earning tokens."""
 
 agent = initialize_agent(
     tools=tools,
