@@ -20,6 +20,7 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import Tokens from "@/pages/Tokens";
 import LoadTokens from "@/pages/LoadTokens";
+import Chatbot from "@/pages/Chatbot";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/admin" component={Admin} />
           <Route path="/tokens" component={Tokens} />
           <Route path="/load-tokens" component={LoadTokens} />
+          <Route path="/chatbot" component={Chatbot} />
           <Route component={NotFound} />
         </Switch>
       </main>
