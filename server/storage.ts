@@ -1,5 +1,7 @@
 import { connectMongo } from './mongo';
 import { User, Product, Transaction, ContactAccess, Review } from './models';
+import { TokenBalance } from './models/TokenBalance';
+import { TokenTransaction } from './models/TokenTransaction';
 
 export class MongoStorage {
   constructor() {
@@ -128,6 +130,159 @@ export class MongoStorage {
       { $group: { _id: null, avg: { $avg: "$rating" } } }
     ]);
     return result[0]?.avg || 0;
+  }
+
+  // Token Balance operations
+  async getTokenBalance(userId: string) {
+    let balance = await TokenBalance.findOne({ userId }).lean();
+    
+    // Create default balance if user doesn't have one
+    if (!balance) {
+      balance = await this.createTokenBalance(userId);
+    }
+    
+    return balance;
+  }
+
+  async createTokenBalance(userId: string) {
+    const balance = await TokenBalance.create({
+      userId,
+      balance: 1000,
+      totalEarned: 1000,
+      totalSpent: 0
+    });
+    return balance.toObject();
+  }
+
+  async updateTokenBalance(userId: string, amount: number, type: 'add' | 'subtract') {
+    const balance = await TokenBalance.findOne({ userId });
+    
+    if (!balance) {
+      await this.createTokenBalance(userId);
+    }
+    
+    const update = type === 'add' 
+      ? { $inc: { balance: amount, totalEarned: amount } }
+      : { $inc: { balance: -amount, totalSpent: amount } };
+    
+    return TokenBalance.findOneAndUpdate(
+      { userId },
+      update,
+      { new: true }
+    ).lean();
+  }
+
+  // Token Transaction operations
+  async createTokenTransaction(transaction: any) {
+    const created = await TokenTransaction.create(transaction);
+    return created.toObject();
+  }
+
+  async getTokenTransactions(userId: string) {
+    return TokenTransaction.find({ userId }).sort({ createdAt: -1 }).lean();
+  }
+
+  async getTokenTransaction(id: string) {
+    return TokenTransaction.findById(id).lean();
+  }
+
+  // Buy/Sell operations
+  async purchaseProduct(productId: string, buyerId: string, sellerId: string, price: number) {
+    const session = await TokenBalance.startSession();
+    
+    try {
+      await session.withTransaction(async () => {
+        // Check buyer's balance
+        const buyerBalance = await TokenBalance.findOne({ userId: buyerId }).session(session);
+        if (!buyerBalance || buyerBalance.balance < price) {
+          throw new Error('Insufficient tokens');
+        }
+
+        // Check if product is still available
+        const product = await Product.findById(productId).session(session);
+        if (!product || product.isSold) {
+          throw new Error('Product not available');
+        }
+
+        // Transfer tokens from buyer to seller
+        await TokenBalance.findOneAndUpdate(
+          { userId: buyerId },
+          { $inc: { balance: -price, totalSpent: price } },
+          { session }
+        );
+
+        await TokenBalance.findOneAndUpdate(
+          { userId: sellerId },
+          { $inc: { balance: price, totalEarned: price } },
+          { session }
+        );
+
+        // Mark product as sold
+        await Product.findByIdAndUpdate(
+          productId,
+          { isSold: true, soldAt: new Date(), buyerId },
+          { session }
+        );
+
+        // Create transaction records
+        await TokenTransaction.create([
+          {
+            userId: buyerId,
+            type: 'purchase',
+            amount: -price,
+            description: `Purchased ${product.title}`,
+            productId,
+            sellerId,
+            buyerId
+          },
+          {
+            userId: sellerId,
+            type: 'sale',
+            amount: price,
+            description: `Sold ${product.title}`,
+            productId,
+            sellerId,
+            buyerId
+          }
+        ], { session, ordered: true });
+      });
+
+      return { success: true };
+    } catch (error) {
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async rewardUser(userId: string, amount: number, reason: string) {
+    const session = await TokenBalance.startSession();
+    
+    try {
+      await session.withTransaction(async () => {
+        // Add tokens to user balance
+        await TokenBalance.findOneAndUpdate(
+          { userId },
+          { $inc: { balance: amount, totalEarned: amount } },
+          { session }
+        );
+
+        // Create transaction record
+        await TokenTransaction.create({
+          userId,
+          type: 'reward',
+          amount,
+          description: reason,
+          status: 'completed'
+        }, { session });
+      });
+
+      return { success: true };
+    } catch (error) {
+      throw error;
+    } finally {
+      await session.endSession();
+    }
   }
 }
 

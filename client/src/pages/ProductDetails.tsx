@@ -8,6 +8,8 @@ import { Helmet } from 'react-helmet-async';
 import { useLocation, useRoute } from 'wouter';
 
 import ContactSellerModal from '@/components/ui/ContactSellerModal';
+import PurchaseButton from '@/components/ui/PurchaseButton';
+import TokenBalance from '@/components/ui/TokenBalance';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -266,10 +268,27 @@ const ProductDetails = () => {
                 </div>
               </div>
 
+              {/* Token Balance */}
+              {currentUser && (
+                <div className="mb-6">
+                  <TokenBalance />
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 {!product.isSold && !isOwner && (
                   <>
+                    {product._id && (
+                      <PurchaseButton product={{
+                        _id: product._id,
+                        title: product.title,
+                        price: product.price,
+                        sellerId: product.sellerId,
+                        isSold: product.isSold
+                      }} />
+                    )}
+                    
                     {canContact ? (
                       <ContactSellerModal
                         product={product}

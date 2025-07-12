@@ -11,13 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, X, User, LogOut, ShoppingBag, Settings } from 'lucide-react';
+import { Menu, X, User, LogOut, ShoppingBag, Settings, Leaf } from 'lucide-react';
 import { FaRecycle } from 'react-icons/fa';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 const Navbar = () => {
   const [location] = useLocation();
   const { currentUser, logout, isAdmin } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Fetch token balance for logged-in users
+  const { data: tokenBalance } = useQuery<{balance: number; totalEarned: number; totalSpent: number}>({
+    queryKey: [`/api/tokens/balance/${currentUser?.mongoUser?._id}`],
+    enabled: !!currentUser?.mongoUser?._id,
+  });
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -50,6 +58,14 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-2">
+            {currentUser && tokenBalance && (
+              <div className="flex items-center space-x-2 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                <Leaf className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-700">
+                  {tokenBalance.balance.toLocaleString()} tokens
+                </span>
+              </div>
+            )}
             <Link href="/sell">
               <Button variant="default" className="bg-accent-500 hover:bg-accent-600 text-gray-800">
                 <span className="mr-1">+</span> List Item
@@ -77,6 +93,11 @@ const Navbar = () => {
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard?tab=listings" className="cursor-pointer flex items-center">
                       <ShoppingBag className="mr-2 h-4 w-4" /> My Listings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/tokens" className="cursor-pointer flex items-center">
+                      <Leaf className="mr-2 h-4 w-4" /> My Tokens
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && (
@@ -144,6 +165,13 @@ const Navbar = () => {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 My Dashboard
+              </Link>
+              <Link 
+                href="/tokens" 
+                className={`${location === '/tokens' ? 'bg-primary-50 border-primary-500 text-primary-500' : 'border-transparent text-gray-700 hover:bg-gray-100 hover:text-primary-500'} block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                My Tokens
               </Link>
               {isAdmin && (
                 <Link 

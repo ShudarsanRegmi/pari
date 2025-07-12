@@ -37,7 +37,7 @@ import { CheckCircle, Loader2 } from "lucide-react";
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
   description: z.string().min(10, { message: "Description must be at least 10 characters" }),
-  price: z.number().min(1, { message: "Price must be at least ₹1" }),
+  price: z.number().min(1, { message: "Price must be at least 1 token" }),
   category: z.string(),
   condition: z.string(),
   image: z.instanceof(FileList).optional().refine(
@@ -295,7 +295,7 @@ const ProductForm = () => {
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Price (₹)</FormLabel>
+                                      <FormLabel>Price (Green Tokens)</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -305,7 +305,7 @@ const ProductForm = () => {
                   />
                 </FormControl>
                 <FormDescription>
-                  Set a competitive price to sell faster.
+                  Enter the price in Green Tokens (default: 1000 tokens per user)
                 </FormDescription>
                 <FormMessage />
               </FormItem>

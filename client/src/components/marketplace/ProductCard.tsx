@@ -1,5 +1,5 @@
 import { Product } from '@shared/schema';
-import { Star } from 'lucide-react';
+import { Star, Leaf } from 'lucide-react';
 
 export interface ProductCardProps {
   product: Product;
@@ -8,8 +8,8 @@ export interface ProductCardProps {
 
 const ProductCard = ({ product, onClick }: ProductCardProps) => {
   const formatPrice = (price: number) => {
-    // Convert from paisa to rupees
-    return `₹${(price / 100).toFixed(2)}`;
+    // Show as green tokens
+    return `${price} tokens`;
   };
 
   const formatTimeSince = (date: Date) => {
@@ -81,7 +81,10 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
       <div className="p-5">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-semibold text-lg text-gray-800">{product.title}</h3>
-          <span className="font-bold text-primary-500">{formatPrice(product.price)}</span>
+          <span className="font-bold text-green-600 flex items-center">
+            <Leaf className="h-4 w-4 mr-1" />
+            {formatPrice(product.price)}
+          </span>
         </div>
         <p className="text-gray-600 text-sm mb-3">
           {product.description.length > 80 
@@ -90,7 +93,7 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         </p>
         <div className="flex justify-between items-center">
           <span className="text-xs text-gray-500">
-            Posted {formatTimeSince(product.createdAt)}
+            Posted {product.createdAt ? formatTimeSince(product.createdAt) : 'Recently'}
           </span>
           <div className="flex items-center text-sm">
             <span className="inline-block bg-green-100 text-green-800 font-medium rounded-full px-2 py-1 text-xs">

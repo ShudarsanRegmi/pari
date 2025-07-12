@@ -18,6 +18,8 @@ import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
+import Tokens from "@/pages/Tokens";
+import LoadTokens from "@/pages/LoadTokens";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -36,6 +38,8 @@ function Router() {
           <Route path="/signup" component={SignUp} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/admin" component={Admin} />
+          <Route path="/tokens" component={Tokens} />
+          <Route path="/load-tokens" component={LoadTokens} />
           <Route component={NotFound} />
         </Switch>
       </main>

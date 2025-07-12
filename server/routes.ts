@@ -262,6 +262,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Token Balance routes
+  app.get("/api/tokens/balance/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const balance = await storage.getTokenBalance(userId);
+      res.json(balance);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  app.get("/api/tokens/transactions/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const transactions = await storage.getTokenTransactions(userId);
+      res.json(transactions);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
+  // Purchase product with tokens
+  app.post("/api/tokens/purchase", async (req, res) => {
+    try {
+      const { productId, buyerId, sellerId, price } = req.body;
+      
+      if (!productId || !buyerId || !sellerId || !price) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const result = await storage.purchaseProduct(productId, buyerId, sellerId, price);
+      res.json(result);
+    } catch (error) {
+      console.error("Purchase error:", error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : "Purchase failed" 
+      });
+    }
+  });
+
+  // Reward user with tokens
+  app.post("/api/tokens/reward", async (req, res) => {
+    try {
+      const { userId, amount, reason } = req.body;
+      
+      if (!userId || !amount || !reason) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const result = await storage.rewardUser(userId, amount, reason);
+      res.json(result);
+    } catch (error) {
+      console.error("Reward error:", error);
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : "Reward failed" 
+      });
+    }
+  });
+
   // User operations
   app.get("/api/users/:id", async (req, res) => {
     try {
