@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Send, 
   Bot, 
@@ -117,21 +119,6 @@ const Chatbot = () => {
     }
   };
 
-  const formatMessage = (content: string) => {
-    return content
-      .split('\n')
-      .map((line, index) => {
-        if (line.startsWith('•')) {
-          return `<div class="flex items-start space-x-2"><span class="text-green-600 mt-1">•</span><span>${line.substring(1)}</span></div>`;
-        }
-        if (line.startsWith('**') && line.endsWith('**')) {
-          return `<strong class="text-green-600">${line.slice(2, -2)}</strong>`;
-        }
-        return line;
-      })
-      .join('<br>');
-  };
-
   return (
     <>
       <Helmet>
@@ -194,12 +181,38 @@ const Chatbot = () => {
                       ? 'bg-blue-600 text-white' 
                       : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
                   }`}>
-                    <div 
-                      className="text-sm leading-relaxed"
-                      dangerouslySetInnerHTML={{
-                        __html: formatMessage(message.content)
-                      }}
-                    />
+                    {message.type === 'user' ? (
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.content}
+                      </div>
+                    ) : (
+                      <div className="chatbot-markdown">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            // Custom styling for different markdown elements
+                            h1: ({children}) => <h1>{children}</h1>,
+                            h2: ({children}) => <h2>{children}</h2>,
+                            h3: ({children}) => <h3>{children}</h3>,
+                            p: ({children}) => <p>{children}</p>,
+                            ul: ({children, ...props}) => <ul {...props}>{children}</ul>,
+                            ol: ({children, ...props}) => <ol {...props}>{children}</ol>,
+                            li: ({children, ...props}) => <li {...props}>{children}</li>,
+                            strong: ({children}) => <strong>{children}</strong>,
+                            em: ({children}) => <em>{children}</em>,
+                            code: ({children}) => <code>{children}</code>,
+                            pre: ({children}) => <pre>{children}</pre>,
+                            blockquote: ({children}) => <blockquote>{children}</blockquote>,
+                            a: ({children, href}) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+                            table: ({children}) => <table>{children}</table>,
+                            th: ({children}) => <th>{children}</th>,
+                            td: ({children}) => <td>{children}</td>,
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
+                    )}
                     <div className={`text-xs mt-2 ${
                       message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
                     }`}>
