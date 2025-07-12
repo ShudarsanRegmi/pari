@@ -9,6 +9,7 @@ from langchain.agents import initialize_agent
 from langchain.agents.agent_types import AgentType
 from langchain.tools import StructuredTool
 from rag.reward_tool import answer_from_reward_guide
+from rag.parivartana_tool import answer_from_parivartana_kb
 from typing import Optional
 import re
 from datetime import datetime
@@ -36,7 +37,7 @@ class Query(BaseModel):
 # Global variable to store current user ID
 current_user_id = None
 
-# Tool Functions for WebNavigator Product System
+# Tool Functions for Parivartana Product System
 
 def search_products(query: str) -> str:
     """Search products by name or description using a keyword."""
@@ -224,7 +225,7 @@ def get_marketplace_stats() -> str:
 
 def get_pricing_guidance() -> str:
     """Provide guidance on how to price products in the marketplace."""
-    return """Pricing Guidance for WebNavigator Marketplace:
+    return """Pricing Guidance for Parivartana Marketplace:
 
 **General Guidelines:**
 - New items: 80-100% of original price
@@ -256,7 +257,7 @@ def get_pricing_guidance() -> str:
 
 def get_selling_tips() -> str:
     """Provide tips for selling products effectively."""
-    return """Tips for Successful Selling on WebNavigator:
+    return """Tips for Successful Selling on Parivartana:
 
 **Before Listing:**
 - Clean and prepare your item
@@ -291,7 +292,7 @@ def get_selling_tips() -> str:
 
 def get_buying_tips() -> str:
     """Provide tips for buying products safely and effectively."""
-    return """Tips for Smart Buying on WebNavigator:
+    return """Tips for Smart Buying on Parivartana:
 
 **Before Buying:**
 - Check seller's profile and reviews
@@ -326,11 +327,11 @@ def get_buying_tips() -> str:
 - Build relationships with good sellers"""
 
 def get_platform_help() -> str:
-    """Provide general help and information about the WebNavigator platform."""
-    return """WebNavigator Platform Help:
+    """Provide general help and information about the Parivartana platform."""
+    return """Parivartana Platform Help:
 
-**What is WebNavigator?**
-WebNavigator is a sustainable marketplace where users can buy and sell items using green tokens, promoting eco-friendly consumption and reducing waste.
+**What is Parivartana?**
+Parivartana is a sustainable marketplace where users can buy and sell items using green tokens, promoting eco-friendly consumption and reducing waste.
 
 **Key Features:**
 - Token-based transactions
@@ -789,7 +790,7 @@ def answer_from_reward_guide(question: str) -> str:
     question_lower = question.lower()
     
     # Simple reward system explanation
-    basic_reward_info = """🌿 **WebNavigator Reward System**
+    basic_reward_info = """🌿 **Parivartana Reward System**
 
 **How it works:**
 • Start with 1000 green tokens
@@ -974,7 +975,7 @@ tools = [
     ),
     StructuredTool.from_function(
         name="get_platform_help",
-        description="Provide general help and information about the WebNavigator platform. Use this when users want to learn about the platform's features and how to get started.",
+        description="Provide general help and information about the Parivartana platform. Use this when users want to learn about the platform's features and how to get started.",
         func=get_platform_help
     ),
     StructuredTool.from_function(
@@ -1031,6 +1032,11 @@ tools = [
         name="reward_system_qa",
         description="Answer questions about the reward system like how many tokens for recycling, tiers, etc. Use this when users ask about how the reward system works.",
         func=answer_from_reward_guide
+    ),
+    StructuredTool.from_function(
+        name="parivartana_kb_qa",
+        description="Answer questions about Parivartana, sustainable practices, and knowledge from the Parivartana Knowledge Base. Use this when users ask about Parivartana, sustainability, transformation, or related topics.",
+        func=answer_from_parivartana_kb
     )
 ]
 
@@ -1041,7 +1047,7 @@ llm = ChatOpenAI(
 )
 
 # Create agent with custom system prompt to be smarter about product enlistment
-system_message = """You are PariMitra, an intelligent AI assistant for WebNavigator - a sustainable marketplace platform.
+system_message = """You are PariMitra, an intelligent AI assistant for Parivartana - a sustainable marketplace platform.
 
 IMPORTANT: When users want to sell or enlist a product, ALWAYS use the `enlist_product` tool with their natural language description. Do NOT ask for individual details like title, price, category, etc. The `enlist_product` tool is designed to intelligently parse natural language input and extract all required information automatically.
 
@@ -1064,6 +1070,12 @@ The `enlist_product` tool can intelligently extract:
 - Community participation rewards
 - Sustainable action rewards
 
+**Parivartana Knowledge Base Questions**: When users ask about Parivartana, sustainability, transformation, or related topics, use the `parivartana_kb_qa` tool. This tool provides detailed answers from the Parivartana Knowledge Base about:
+- Parivartana concepts and philosophy
+- Sustainable practices and transformation
+- Community building and social change
+- Environmental consciousness and eco-friendly living
+
 You have access to various tools to help users with:
 1. Product search and browsing
 2. Token balance and transactions
@@ -1071,6 +1083,7 @@ You have access to various tools to help users with:
 4. Platform help and guidance
 5. Product enlistment (use enlist_product tool for this)
 6. Reward system questions (use reward_system_qa tool for this)
+7. Parivartana knowledge base questions (use parivartana_kb_qa tool for this)
 
 Always be helpful, friendly, and focus on sustainability and community building. Provide specific, actionable information about earning tokens."""
 
@@ -1113,5 +1126,10 @@ async def chat(query: Query):
         return {"response": f"Error: {str(e)}"}
 
 if __name__ == "__main__":
+    # Initialize the Parivartana Knowledge Base
+    from rag.parivartana_rag import initialize_parivartana_system
+    print("Initializing Parivartana Knowledge Base...")
+    initialize_parivartana_system()
+    
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
