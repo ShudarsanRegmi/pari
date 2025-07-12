@@ -139,6 +139,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const deletedProduct = await storage.deleteProduct(id);
+      
+      if (!deletedProduct) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      res.json({ message: "Product deleted successfully" });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
   // Transactions
   app.post("/api/transactions", async (req, res) => {
     try {

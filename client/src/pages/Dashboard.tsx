@@ -31,8 +31,29 @@ import {
   Tag,
   ArrowUpRight,
   ArrowDownRight,
-  Coins
+  Coins,
+  Edit,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Token transaction interface
 interface TokenTransaction {
@@ -66,6 +87,17 @@ const Dashboard = () => {
   const queryParams = new URLSearchParams(window.location.search);
   const tabParam = queryParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam || 'overview');
+  
+  // State for editing products
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: '',
+    imageUrl: ''
+  });
   
   // Update active tab when URL query parameter changes
   useEffect(() => {
@@ -132,10 +164,96 @@ const Dashboard = () => {
       });
     }
   });
+
+  // Update product mutation
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ productId, data }: { productId: string; data: any }) => {
+      const response = await apiRequest("PATCH", `/api/products/${productId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id}`] });
+      setIsEditDialogOpen(false);
+      setEditingProduct(null);
+      toast({
+        title: "Product Updated!",
+        description: "The product details have been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating product:", error);
+      toast({
+        title: "Failed to Update Product",
+        description: "There was an error updating the product. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      const response = await apiRequest("DELETE", `/api/products/${productId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/products?sellerId=${currentUser?.mongoUser?._id}`] });
+      toast({
+        title: "Product Delisted!",
+        description: "The product has been removed from your listings.",
+      });
+    },
+    onError: (error) => {
+      console.error("Error deleting product:", error);
+      toast({
+        title: "Failed to Delist Product",
+        description: "There was an error removing the product. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
   
   // Function to mark a product as sold
   const markProductAsSold = (productId: string) => {
     markProductAsSoldMutation.mutate(productId);
+  };
+
+  // Function to open edit dialog
+  const openEditDialog = (product: Product) => {
+    setEditingProduct(product);
+    setEditFormData({
+      title: product.title || '',
+      description: product.description || '',
+      price: product.price?.toString() || '',
+      category: product.category || '',
+      imageUrl: product.imageUrl || ''
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  // Function to handle edit form submission
+  const handleEditSubmit = () => {
+    if (!editingProduct) return;
+    
+    updateProductMutation.mutate({
+      productId: editingProduct._id!,
+      data: {
+        title: editFormData.title,
+        description: editFormData.description,
+        price: parseInt(editFormData.price),
+        category: editFormData.category,
+        imageUrl: editFormData.imageUrl || null
+      }
+    });
+  };
+
+  // Function to delete a product
+  const deleteProduct = (productId: string) => {
+    if (confirm('Are you sure you want to delist this product? This action cannot be undone.')) {
+      deleteProductMutation.mutate(productId);
+    }
   };
 
   if (loading) {
@@ -430,17 +548,34 @@ const Dashboard = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="absolute top-2 right-2 z-10">
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700 text-white" 
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent card click
-                            markProductAsSold(product._id!);
-                          }}
-                        >
-                          Mark as Sold
-                        </Button>
+                      <div className="absolute top-2 right-2 z-10 flex space-x-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" className="bg-white/90 backdrop-blur-sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditDialog(product)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => markProductAsSold(product._id!)}
+                              className="text-green-600"
+                            >
+                              <ShoppingBag className="mr-2 h-4 w-4" />
+                              Mark as Sold
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => deleteProduct(product._id!)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delist
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     )}
                     <ProductCard 
@@ -654,6 +789,86 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Update the details of your product.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="title"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="price" className="text-right">
+                Price (tokens)
+              </Label>
+              <Input
+                type="number"
+                id="price"
+                value={editFormData.price}
+                onChange={(e) => setEditFormData({ ...editFormData, price: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">
+                Category
+              </Label>
+              <Select onValueChange={(value) => setEditFormData({ ...editFormData, category: value })} defaultValue={editFormData.category}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                                 <SelectContent>
+                   <SelectItem value="books">Books</SelectItem>
+                   <SelectItem value="electronics">Electronics</SelectItem>
+                   <SelectItem value="clothes">Clothes</SelectItem>
+                   <SelectItem value="stationery">Stationery</SelectItem>
+                   <SelectItem value="misc">Miscellaneous</SelectItem>
+                 </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="imageUrl" className="text-right">
+                Image URL
+              </Label>
+              <Input
+                id="imageUrl"
+                value={editFormData.imageUrl}
+                onChange={(e) => setEditFormData({ ...editFormData, imageUrl: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

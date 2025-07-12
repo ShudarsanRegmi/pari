@@ -84,6 +84,9 @@ export class MongoStorage {
   async markProductAsSold(id: string) {
     return Product.findByIdAndUpdate(id, { isSold: true, updatedAt: new Date() }, { new: true }).lean();
   }
+  async deleteProduct(id: string) {
+    return Product.findByIdAndDelete(id).lean();
+  }
 
   // Transaction operations
   async createTransaction(transaction: any) {
