@@ -16,3 +16,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Custom ignore rules
+.env
+*.pyc
+__pycache__/
