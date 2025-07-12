@@ -2,9 +2,9 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Product } from '@shared/schema';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useLocation } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 
 import CategoryFilter from '@/components/marketplace/CategoryFilter';
 import ProductCard from '@/components/marketplace/ProductCard';
@@ -18,11 +18,34 @@ const Marketplace = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
+  // Get category from URL params
+  const [, params] = useRoute('/marketplace/:category?');
+  const categoryFromUrl = params?.category;
+  
   // State for filters and search
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Update selectedCategory when URL changes
+  useEffect(() => {
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    } else {
+      setSelectedCategory('all');
+    }
+  }, [categoryFromUrl]);
+
+  // Update URL when category changes
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    if (category === 'all') {
+      setLocation('/marketplace');
+    } else {
+      setLocation(`/marketplace/${category}`);
+    }
+  };
 
   // Fetch products with filters
   const { data: products, isLoading, error } = useQuery<Product[]>({
@@ -42,14 +65,14 @@ const Marketplace = () => {
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
-      case 'price-low':
+      case 'lowest':
         return a.price - b.price;
-      case 'price-high':
+      case 'highest':
         return b.price - a.price;
       case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.createdAt || new Date()).getTime() - new Date(a.createdAt || new Date()).getTime();
       case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return new Date(a.createdAt || new Date()).getTime() - new Date(b.createdAt || new Date()).getTime();
       default:
         return 0;
     }
@@ -104,11 +127,11 @@ const Marketplace = () => {
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <CategoryFilter
                 selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
+                onCategoryChange={handleCategoryChange}
               />
               <SortFilter
-                sortBy={sortBy}
-                onSortChange={setSortBy}
+                value={sortBy}
+                onChange={setSortBy}
               />
             </div>
 
@@ -196,7 +219,7 @@ const Marketplace = () => {
                   variant="outline" 
                   onClick={() => {
                     setSearchQuery('');
-                    setSelectedCategory('all');
+                    handleCategoryChange('all');
                   }}
                 >
                   Clear Filters

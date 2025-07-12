@@ -26,7 +26,7 @@ const ProductDetails = () => {
   // Get product ID from URL
   const [match, params] = useRoute('/product/:id');
   const productId = match ? params.id : null;
-  
+
   const [selectedImage, setSelectedImage] = useState(0);
 
   // Fetch product details
@@ -185,14 +185,14 @@ const ProductDetails = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Back Button */}
-          <Button 
-            variant="ghost" 
+        <Button 
+          variant="ghost" 
             onClick={() => setLocation('/marketplace')}
-            className="mb-6"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Marketplace
-          </Button>
+          className="mb-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Marketplace
+        </Button>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Product Images */}
@@ -200,7 +200,7 @@ const ProductDetails = () => {
               <div className="relative">
                 <img
                   src={product.imageUrl || '/placeholder-product.jpg'}
-                  alt={product.title}
+                  alt={product.title} 
                   className="w-full h-96 object-cover rounded-lg"
                 />
                 {product.isSold && (
@@ -224,9 +224,9 @@ const ProductDetails = () => {
 
             {/* Product Details */}
             <div className="space-y-6">
-              <div>
+            <div>
                 <div className="flex items-start justify-between mb-2">
-                  <h1 className="text-3xl font-display font-bold text-gray-800">{product.title}</h1>
+              <h1 className="text-3xl font-display font-bold text-gray-800">{product.title}</h1>
                   <Button variant="ghost" size="sm">
                     <Heart className="h-5 w-5" />
                   </Button>
@@ -243,12 +243,12 @@ const ProductDetails = () => {
                   <Badge variant="destructive">Sold</Badge>
                 )}
               </div>
-
+              
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Description</h3>
                 <p className="text-gray-600 leading-relaxed">{product.description}</p>
               </div>
-
+              
               <Separator />
 
               {/* Seller Information */}
@@ -264,10 +264,10 @@ const ProductDetails = () => {
                   <div>
                     <p className="font-medium text-gray-800">{product.sellerName || 'Anonymous Seller'}</p>
                     <p className="text-sm text-gray-500">Member since {formatDate(product.createdAt)}</p>
-                  </div>
+                </div>
                 </div>
               </div>
-
+              
               {/* Token Balance */}
               {currentUser && (
                 <div className="mb-6">
@@ -419,8 +419,8 @@ const ProductDetails = () => {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-            ) : (
+          </div>
+        ) : (
               <Card>
                 <CardContent className="p-6 text-center">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
